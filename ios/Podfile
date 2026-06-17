@@ -30,5 +30,36 @@ target 'todayggigu' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # fmt 11.0.2 uses C++20 `consteval` for compile-time format-string checks,
+    # which Xcode 26's stricter Clang rejects ("call to consteval function ...
+    # is not a constant expression"), breaking the fmt/RCT-Folly build.
+    #
+    # A `-DFMT_USE_CONSTEVAL=0` build flag does NOT help: fmt's base.h has no
+    # `#ifndef` guard and unconditionally re-#defines FMT_USE_CONSTEVAL to 1
+    # when it detects __cpp_consteval, overriding the command-line value. So we
+    # patch the header itself to force consteval off (checks fall back to
+    # runtime). Pods are regenerated on every `pod install`, so re-apply here.
+    fmt_base = File.join(__dir__, 'Pods', 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      contents = File.read(fmt_base)
+      anchor = "#if FMT_USE_CONSTEVAL\n#  define FMT_CONSTEVAL consteval"
+      unless contents.include?('#undef FMT_USE_CONSTEVAL')
+        patched = contents.sub(
+          anchor,
+          "#undef FMT_USE_CONSTEVAL  // Xcode 26 compat: force consteval off\n" \
+          "#define FMT_USE_CONSTEVAL 0\n" + anchor
+        )
+        if patched == contents
+          Pod::UI.warn 'fmt base.h consteval anchor not found — patch skipped'
+        else
+          # CocoaPods installs fmt's headers read-only (mode 0444), so a plain
+          # File.write raises "Permission denied". Make it writable first.
+          File.chmod(0644, fmt_base)
+          File.write(fmt_base, patched)
+          Pod::UI.puts 'Patched fmt base.h: FMT_USE_CONSTEVAL forced to 0'.green
+        end
+      end
+    end
   end
 end
