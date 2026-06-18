@@ -247,9 +247,9 @@ const GeneralInquiryChatScreen: React.FC = () => {
         readByName: string;
         readAt: string;
       }) => {
-        if (data.inquiryId === currentInquiryId) {
-          showToast(t('inquiry.readMessages').replace('{name}', data.readByName), 'info');
-        }
+        // 읽음 통보 토스트 제거(사용자 요청). 관리자 읽음 여부는 MessageScreen
+        // 카드의 체크 표시(✓ 전송 / ✓✓ 읽음)로만 노출한다.
+        void data;
       };
 
       // Listen for inquiry closure

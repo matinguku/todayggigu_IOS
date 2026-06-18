@@ -11,6 +11,7 @@ import { useAuth } from './AuthContext';
 import { getStoredToken } from '../services/authApi';
 import { inquiryApi } from '../services/inquiryApi';
 import { isInquiryConfirmedSync, prewarmVisitedInquiries } from '../utils/visitedInquiries';
+import { recordAdminReadSync, prewarmAdminReadReceipts } from '../utils/adminReadReceipts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants';
 
@@ -40,6 +41,9 @@ interface SocketContextType {
   currentInquiry: GeneralInquiry | null;
   unreadCount: number;
   orderInquiryUnreadById: Record<string, number>;
+  // 관리자가 사용자 메시지를 읽을 때마다 +1. MessageScreen 이 이 값을 구독해
+  // 카드의 체크 표시(✓/✓✓)를 다시 그린다. 실제 읽음 시각은 adminReadReceipts 에 영속.
+  inquiryReadReceiptVersion: number;
   generalInquiries: GeneralInquiry[];
   currentGeneralInquiry: GeneralInquiry | null;
   generalInquiryUnreadCount: number;
@@ -99,6 +103,7 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // 이로 인해 socket 의 반복 emit 으로 인한 배지 깜박임이 사라진다.
   const [unreadCountOverride, setUnreadCountOverrideState] = useState<number | null>(null);
   const [orderInquiryUnreadById, setOrderInquiryUnreadById] = useState<Record<string, number>>({});
+  const [inquiryReadReceiptVersion, setInquiryReadReceiptVersion] = useState(0);
   const [generalInquiries, setGeneralInquiries] = useState<GeneralInquiry[]>([]);
   const [currentGeneralInquiry, setCurrentGeneralInquiry] = useState<GeneralInquiry | null>(null);
   const [generalInquiryUnreadCount, setGeneralInquiryUnreadCount] = useState(0);
@@ -361,6 +366,12 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       readAt: string;
     }) => {
       console.log('[Socket][OrderInquiry] Messages read:', { inquiryId: data.inquiryId, readBy: data.readByName });
+      // 사용자 본인 읽음을 제외한 모든 read(=관리자/상담원) 를 영속 기록
+      // → MessageScreen 카드가 ✓✓(읽음)로 표시. (원래 토스트도 type 무관하게 떴음)
+      if (data.readByType !== 'user' && data.inquiryId) {
+        recordAdminReadSync(data.inquiryId, data.readAt);
+        setInquiryReadReceiptVersion((v) => v + 1);
+      }
       if (onMessagesReadCallbackRef.current) {
         onMessagesReadCallbackRef.current(data);
       }
@@ -610,6 +621,11 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       readAt: string;
     }) => {
       // console.log('Admin read general inquiry messages:', data);
+      // 사용자 본인 읽음을 제외한 모든 read(=관리자/상담원) 를 영속 기록.
+      if (data.readByType !== 'user' && data.inquiryId) {
+        recordAdminReadSync(data.inquiryId, data.readAt);
+        setInquiryReadReceiptVersion((v) => v + 1);
+      }
       if (onGeneralInquiryMessagesReadCallbackRef.current) {
         onGeneralInquiryMessagesReadCallbackRef.current(data);
       }
@@ -816,6 +832,8 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       try {
         // 1) visited 캐시 prewarm — isInquiryConfirmedSync 가 sync 조회하려면 필요.
         await prewarmVisitedInquiries();
+        // 관리자 읽음 캐시 prewarm — isReadByAdminSync 가 sync 조회하려면 필요.
+        await prewarmAdminReadReceipts();
         if (cancelled) return;
 
         // 2) /inquiries/orders 응답으로 정확한 미확인 카드 수 계산.
@@ -1004,6 +1022,7 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // override 가 설정되면 그 값 우선, 아니면 socket 응답값. 깜박임 차단.
     unreadCount: effectiveUnreadCount,
     orderInquiryUnreadById,
+    inquiryReadReceiptVersion,
     generalInquiries,
     currentGeneralInquiry,
     generalInquiryUnreadCount: effectiveGeneralInquiryUnreadCount,

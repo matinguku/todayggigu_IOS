@@ -428,15 +428,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
         readByName: string; 
         readAt: string;
       }) => {
-        if (data.inquiryId === inquiryId) {
-          // i18n 적용 — inquiry.readMessages 의 {name} 자리에 readByName 대입.
-          // 사용자 요청: 배경색을 프로젝트 붉은색으로 → 'error' 타입 사용
-          // (Toast 컴포넌트의 error 케이스가 COLORS.red 로 매핑됨).
-          showToast(
-            t('inquiry.readMessages').replace('{name}', data.readByName || ''),
-            'error',
-          );
-        }
+        // 읽음 통보 토스트 제거(사용자 요청). 관리자가 읽었는지는 더 이상
+        // 팝업으로 알리지 않고, MessageScreen 카드의 체크 표시
+        // (✓ 전송 / ✓✓ 읽음)로만 노출한다. 그 읽음 상태는 SocketContext 가
+        // messages-read 이벤트를 받아 영속 기록한다.
+        void data;
       };
 
       // Listen for inquiry closure

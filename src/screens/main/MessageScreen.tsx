@@ -37,6 +37,10 @@ import {
   clearInquiryVisitedSync,
 } from '../../utils/visitedInquiries';
 import {
+  isReadByAdminSync,
+  prewarmAdminReadReceipts,
+} from '../../utils/adminReadReceipts';
+import {
   hideInquiry,
   isInquiryHiddenSync,
   prewarmHiddenInquiries,
@@ -88,6 +92,7 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
     isConnected,
     unreadCount: orderUnreadCount,
     orderInquiryUnreadById,
+    inquiryReadReceiptVersion,
     generalInquiryUnreadCount,
     generalInquiryUnreadById,
     getUnreadCounts,
@@ -128,6 +133,19 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
   useEffect(() => {
     const id = requestAnimationFrame(() => setShowHeavyContent(true));
     return () => cancelAnimationFrame(id);
+  }, []);
+
+  // 관리자 읽음 캐시 prewarm — isReadByAdminSync 가 sync 조회하려면 필요.
+  // 로드 완료 후 카운터를 올려 카드(✓/✓✓)를 한 번 다시 그린다.
+  const [readCacheReady, setReadCacheReady] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    prewarmAdminReadReceipts().then(() => {
+      if (alive) setReadCacheReady((v) => v + 1);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Redirect to login if not authenticated
@@ -591,6 +609,8 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
     // 보다 나중이 되어 다시 미확인으로 돌아간다 (backend status 와 무관).
     const confirmed = isInquiryConfirmedSync(item.inquiryId, item.lastMessageAt);
     const displayStatus = confirmed ? 'confirmed' : item.status;
+    // ✓ = 전송 / ✓✓ = 관리자 읽음. readReceiptVersion·readCacheReady 변화 시 재계산.
+    const readByAdmin = isReadByAdminSync(item.inquiryId, item.lastMessageAt);
 
     return (
     <TouchableOpacity
@@ -640,7 +660,14 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
         <Text style={styles.orderItemNumber}>
           {formatOrderDisplayNumber(item.orderNumber, item.orderId)}
         </Text>
-        <Text style={styles.orderItemDate}>{formatDate(item.lastMessageAt || item.createdAt)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={styles.orderItemDate}>{formatDate(item.lastMessageAt || item.createdAt)}</Text>
+          <Icon
+            name={readByAdmin ? 'checkmark-done' : 'checkmark'}
+            size={15}
+            color={readByAdmin ? COLORS.red : COLORS.gray[400]}
+          />
+        </View>
         {item.lastMessagePreview ? (
           <Text style={styles.lastMessagePreview} numberOfLines={1}>
             {item.lastMessagePreview}
@@ -771,6 +798,7 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
         data={visibleOrderInquiries}
         keyExtractor={(item) => item.inquiryId || item.orderId}
         renderItem={renderOrderItem}
+        extraData={`${inquiryReadReceiptVersion}-${readCacheReady}`}
         ListEmptyComponent={renderOrderEmptyState}
         contentContainerStyle={visibleOrderInquiries.length === 0 ? styles.emptyListContent : undefined}
         refreshControl={<RefreshControl refreshing={orderRefreshing} onRefresh={handleOrderRefresh} />}
@@ -785,6 +813,8 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
     const isClosed = item.status === 'closed' || item.status === 'resolved';
     const unread = (item as any).unreadCount || 0;
     const messageCount = (item as any).messageCount || item.messages?.length || 0;
+    // ✓ = 전송 / ✓✓ = 관리자 읽음.
+    const readByAdmin = isReadByAdminSync(item._id, item.lastMessageAt || item.createdAt);
 
     return (
       <TouchableOpacity
@@ -805,7 +835,14 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
               </View>
             )}
           </View>
-          <Text style={styles.generalItemDate}>{formatDate(item.lastMessageAt || item.createdAt)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={styles.generalItemDate}>{formatDate(item.lastMessageAt || item.createdAt)}</Text>
+            <Icon
+              name={readByAdmin ? 'checkmark-done' : 'checkmark'}
+              size={15}
+              color={readByAdmin ? COLORS.red : COLORS.gray[400]}
+            />
+          </View>
           {messageCount > 0 ? (
             <Text style={styles.messageCountText}>{formatMessageCountLabel(messageCount)}</Text>
           ) : null}
@@ -871,6 +908,7 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
           data={data}
           keyExtractor={(item) => item._id}
           renderItem={renderGeneralItem}
+          extraData={`${inquiryReadReceiptVersion}-${readCacheReady}`}
           ListEmptyComponent={renderGeneralEmptyState}
           contentContainerStyle={data.length === 0 ? styles.emptyListContent : undefined}
           refreshControl={<RefreshControl refreshing={false} onRefresh={handleGeneralRefresh} />}
