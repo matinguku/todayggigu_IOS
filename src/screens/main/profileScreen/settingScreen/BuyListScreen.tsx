@@ -29,7 +29,6 @@ import OfficialSupportIcon from '../../../../assets/icons/OfficialSupportIcon';
 import FeedbackIcon from '../../../../assets/icons/FeedbackIcon';
 import CustomerSupportIcon from '../../../../assets/icons/CustomerSupportIcon';
 import HeadsetMicIcon from '../../../../assets/icons/HeadsetMicIcon';
-import CallIcon from '../../../../assets/icons/CallIcon';
 import SellerShopIcon from '../../../../assets/icons/SellerShopIcon';
 import { OrderFilterModal, BuyListProductSelectionModal } from '../../../../components';
 import type { BuyListProductSelectionItem } from '../../../../components/BuyListProductSelectionModal';
@@ -1997,8 +1996,9 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
               accessibilityRole="button"
               accessibilityLabel={t('chat.orderInquiry')}
             >
-              {/* 주문문의 — 레시바(수화기) 아이콘 버튼. 텍스트 대신 아이콘만, 기능(채팅 열기)은 동일. */}
-              <CallIcon width={22} height={22} color={COLORS.red} />
+              {/* 주문문의 — 홈 헤더 우측과 동일한 레시바 아이콘(HeadsetMicIcon).
+                  텍스트 대신 아이콘만, 기능(채팅 열기)은 동일. */}
+              <HeadsetMicIcon width={22} height={22} color={COLORS.red} />
               {order.unreadCount != null && order.unreadCount > 0 && (
                 <View style={styles.inquiryUnreadBadge}>
                   <Text style={styles.inquiryUnreadBadgeText}>{order.unreadCount}</Text>
