@@ -2458,15 +2458,13 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
                       </Text>
                     </View>
                   ) : (
-                    <TouchableOpacity
-                      style={styles.deliveryAddressFilledBox}
-                      onPress={showRecipientPicker}
-                      activeOpacity={0.7}
-                    >
+                    <View style={styles.deliveryAddressFilledBox}>
+                      {/* 주소 표시 전용 — 클릭 시 수령인 picker 가 뜨던 기능 제거(사용자 요청).
+                          주소 변경/관리는 위쪽 '배송 주소 확인' 액션 버튼으로만 가능. */}
                       <Text style={styles.deliveryAddressFilledText} numberOfLines={3}>
                         {deliveryAddressLabel || t('cartOrder.orderModal.selectPlaceholder')}
                       </Text>
-                    </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               </View>
