@@ -1098,10 +1098,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             activeOpacity={0.7}
             onPress={() => setShowOrderDetail(!showOrderDetail)}
           >
-            {/* 상품번호 — 상품 이미지 앞(왼쪽)에 표시 */}
-            {(orderData?.items?.[0]?.offerId || orderData?.items?.[0]?.itemUniqueNo) ? (
+            {/* 상품번호(productNo) — 상품 이미지 앞(왼쪽)에 표시 */}
+            {(orderData?.items?.[0]?.productNo || orderData?.items?.[0]?.itemUniqueNo) ? (
               <Text style={styles.orderInfoProductNo} numberOfLines={1}>
-                {String(orderData.items[0].offerId || orderData.items[0].itemUniqueNo)}
+                {String(orderData.items[0].productNo || orderData.items[0].itemUniqueNo)}
               </Text>
             ) : null}
             {(orderData?.items?.[0]?.imageUrl || orderData?.items?.[0]?.image) ? (
