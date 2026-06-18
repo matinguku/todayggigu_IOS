@@ -29,6 +29,7 @@ import OfficialSupportIcon from '../../../../assets/icons/OfficialSupportIcon';
 import FeedbackIcon from '../../../../assets/icons/FeedbackIcon';
 import CustomerSupportIcon from '../../../../assets/icons/CustomerSupportIcon';
 import HeadsetMicIcon from '../../../../assets/icons/HeadsetMicIcon';
+import CallIcon from '../../../../assets/icons/CallIcon';
 import SellerShopIcon from '../../../../assets/icons/SellerShopIcon';
 import { OrderFilterModal, BuyListProductSelectionModal } from '../../../../components';
 import type { BuyListProductSelectionItem } from '../../../../components/BuyListProductSelectionModal';
@@ -1989,9 +1990,15 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
             <Text style={styles.orderHeaderDate} numberOfLines={1}>
               {t('profile.unitSurvey.orderDate')} {formatBuyListOrderDate(order.createdAt)}
             </Text>
-            <TouchableOpacity style={styles.orderInquiryButton} onPress={() => handleOrderInquiry(order)}>
-              <Icon name="chatbubble-outline" size={14} color={COLORS.red} />
-              <Text style={styles.orderInquiryButtonText}>{t('chat.orderInquiry')}</Text>
+            <TouchableOpacity
+              style={styles.orderInquiryButton}
+              onPress={() => handleOrderInquiry(order)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('chat.orderInquiry')}
+            >
+              {/* 주문문의 — 레시바(수화기) 아이콘 버튼. 텍스트 대신 아이콘만, 기능(채팅 열기)은 동일. */}
+              <CallIcon width={22} height={22} color={COLORS.red} />
               {order.unreadCount != null && order.unreadCount > 0 && (
                 <View style={styles.inquiryUnreadBadge}>
                   <Text style={styles.inquiryUnreadBadgeText}>{order.unreadCount}</Text>
@@ -4826,15 +4833,13 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.xs,
     color: COLORS.text.secondary,
   },
+  // 주문문의 = 수화기 아이콘 버튼 (텍스트/테두리 없는 아이콘 형식).
   orderInquiryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderWidth: 1,
-    borderColor: COLORS.red,
-    borderRadius: 6,
-    paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   orderInquiryButtonText: {
     fontSize: FONTS.sizes.xs,
