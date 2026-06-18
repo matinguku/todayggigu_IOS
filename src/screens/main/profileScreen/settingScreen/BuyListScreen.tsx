@@ -2069,8 +2069,7 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
           )}
         </View>
 
-        {(order.status === 'unpaid' ||
-          canonicalStatus === 'P_PENDING' ||
+        {(canonicalStatus === 'P_PENDING' ||
           canonicalStatus === 'IO_PAY_PENDING') && (
           <ScrollView
             horizontal
@@ -2078,21 +2077,6 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
             style={styles.orderActionButtons}
             contentContainerStyle={styles.orderActionButtonsContent}
           >
-            {order.status === 'unpaid' && (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => {
-                  setCancelReason('changedMyMind');
-                  setCancelOtherText('');
-                  setCancelOrderModal({ orderId: order.id });
-                }}
-              >
-                <Text style={styles.secondaryButtonText}>
-                  {t('cart.cancelOrder') || 'Cancel order'}
-                </Text>
-              </TouchableOpacity>
-            )}
-
             {(canonicalStatus === 'P_PENDING' || canonicalStatus === 'IO_PAY_PENDING') &&
               (() => {
                 // pendingBankPaymentsTick 를 참조해 useFocusEffect 의 prewarm
