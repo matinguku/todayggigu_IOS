@@ -1098,6 +1098,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             activeOpacity={0.7}
             onPress={() => setShowOrderDetail(!showOrderDetail)}
           >
+            {/* 상품번호 — 상품 이미지 앞(왼쪽)에 표시 */}
+            {(orderData?.items?.[0]?.offerId || orderData?.items?.[0]?.itemUniqueNo) ? (
+              <Text style={styles.orderInfoProductNo} numberOfLines={1}>
+                {String(orderData.items[0].offerId || orderData.items[0].itemUniqueNo)}
+              </Text>
+            ) : null}
             {(orderData?.items?.[0]?.imageUrl || orderData?.items?.[0]?.image) ? (
               <Image source={{ uri: orderData.items[0].imageUrl || orderData.items[0].image }} style={styles.orderInfoImage} />
             ) : (
@@ -1342,6 +1348,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: COLORS.gray[100],
     marginRight: 10,
+  },
+  // 상품번호 — 상품 이미지 왼쪽(앞)에 표시.
+  orderInfoProductNo: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '600',
+    color: COLORS.text.secondary,
+    marginRight: 8,
+    maxWidth: 96,
   },
   orderInfoNumber: {
     fontSize: FONTS.sizes.base,
