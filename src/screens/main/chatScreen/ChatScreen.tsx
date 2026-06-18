@@ -1127,6 +1127,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             <View style={styles.orderDetailDropdown}>
               {orderData.items?.map((item: any, idx: number) => (
                 <View key={`item-${idx}`} style={styles.orderDetailItem}>
+                  {/* 상품번호(productNo) — 펼친 각 상품 이미지 앞에 표시 */}
+                  {(item.productNo || item.itemUniqueNo) ? (
+                    <Text style={styles.orderInfoProductNo} numberOfLines={1}>
+                      {String(item.productNo || item.itemUniqueNo)}
+                    </Text>
+                  ) : null}
                   {(item.imageUrl || item.image) ? (
                     <Image source={{ uri: item.imageUrl || item.image }} style={styles.orderDetailItemImage} />
                   ) : null}
