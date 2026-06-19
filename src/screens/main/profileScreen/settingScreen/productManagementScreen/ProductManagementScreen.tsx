@@ -1720,7 +1720,19 @@ const ProductManagementScreen: React.FC<ProductManagementScreenProps> = ({
                             >
                               <Icon name="remove" size={14} color={COLORS.text.primary} />
                             </TouchableOpacity>
-                            <Text style={styles.cartModalQtyValue}>{qty}</Text>
+                            <TextInput
+                              style={[styles.cartModalQtyValue, { paddingVertical: 0 }]}
+                              value={qty > 0 ? String(qty) : ''}
+                              onChangeText={(text) => {
+                                // 숫자만 허용. 빈칸은 0(미선택)으로. setQty 가 Math.max(0,..) 로 보정.
+                                const digits = text.replace(/[^0-9]/g, '');
+                                setQty(variantSkuId, digits === '' ? 0 : parseInt(digits, 10));
+                              }}
+                              keyboardType="number-pad"
+                              returnKeyType="done"
+                              selectTextOnFocus
+                              maxLength={6}
+                            />
                             <TouchableOpacity
                               style={styles.cartModalQtyBtn}
                               onPress={() => setQty(variantSkuId, qty + 1)}
