@@ -207,11 +207,27 @@ export const signInWithGoogle = async () => {
     // Extract user data from backend response (same format as login)
     const { user, token, refreshToken } = backendData.data;
 
+    // 백엔드 user 객체의 필드명이 환경마다 다를 수 있어 방어적으로 매핑한다
+    // (todaymall 검증 구현과 동일). 특히 id 는 `_id`(MongoDB) 폴백이 없으면
+    // undefined 가 되어 로그인 직후 세션이 깨질 수 있다.
+    const userData = {
+      id: user.id || user._id,
+      email: user.email || '',
+      name:
+        user.userName ||
+        user.user_id ||
+        user.name ||
+        (user.email ? String(user.email).split('@')[0] : '') ||
+        'User',
+      phone: user.phone,
+      avatar: user.avatar || user.pictureUrl,
+    };
+
     // 토큰 영속 저장(이메일 로그인 apiLogin 과 동일) — 이후 인증 API 호출과
     // 앱 재시작 시 세션 유지를 위해 USER_TOKEN/REFRESH_TOKEN 을 저장한다.
     // 이게 없으면 로그인 직후엔 동작해도 재시작 시 로그아웃되고 인증 API 가 실패한다.
     if (token) {
-      await storeAuthData(token, user);
+      await storeAuthData(token, userData);
       if (refreshToken) {
         await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
       }
@@ -220,15 +236,9 @@ export const signInWithGoogle = async () => {
     return {
       success: true,
       data: {
-        token: token,
-        refreshToken: refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.user_id || user.name,
-          phone: user.phone,
-          avatar: user.avatar,
-        },
+        token,
+        refreshToken,
+        user: userData,
       },
     };
   } catch (error: any) {
@@ -358,11 +368,27 @@ export const signInWithApple = async () => {
 
     const { user, token, refreshToken } = backendData.data;
 
+    // 백엔드 user 객체의 필드명이 환경마다 다를 수 있어 방어적으로 매핑한다
+    // (todaymall 검증 구현과 동일). 특히 id 는 `_id`(MongoDB) 폴백이 없으면
+    // undefined 가 되어 로그인 직후 세션이 깨질 수 있다.
+    const userData = {
+      id: user.id || user._id,
+      email: user.email || '',
+      name:
+        user.userName ||
+        user.user_id ||
+        user.name ||
+        (user.email ? String(user.email).split('@')[0] : '') ||
+        'User',
+      phone: user.phone,
+      avatar: user.avatar || user.pictureUrl,
+    };
+
     // 토큰 영속 저장(이메일 로그인 apiLogin 과 동일) — 이후 인증 API 호출과
     // 앱 재시작 시 세션 유지를 위해 USER_TOKEN/REFRESH_TOKEN 을 저장한다.
     // 이게 없으면 로그인 직후엔 동작해도 재시작 시 로그아웃되고 인증 API 가 실패한다.
     if (token) {
-      await storeAuthData(token, user);
+      await storeAuthData(token, userData);
       if (refreshToken) {
         await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
       }
@@ -371,15 +397,9 @@ export const signInWithApple = async () => {
     return {
       success: true,
       data: {
-        token: token,
-        refreshToken: refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.user_id || user.name,
-          phone: user.phone,
-          avatar: user.avatar,
-        },
+        token,
+        refreshToken,
+        user: userData,
       },
     };
   } catch (err: any) {
