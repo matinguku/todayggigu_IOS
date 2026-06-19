@@ -69,11 +69,10 @@ const GOOGLE_REDIRECT_URI = "https://auth.expo.io/@roy_hensley/todaymall";
 
 
 
-GoogleSignin.configure({
-  webClientId: GOOGLE_WEB_CLIENT_ID,
-  offlineAccess: true,
-  forceCodeForRefreshToken: true,
-});
+// ⚠️ Google Sign-In 설정은 여기(모듈 로드 시점)서 호출하지 않는다.
+// iOS 에는 iosClientId/GoogleService-Info.plist 가 없어 configure 가 실패하는데,
+// 모듈 레벨이면 socialAuth 를 import 하는 것만으로(= 애플 로그인 버튼을 눌러도)
+// 빨간 RNGoogleSignin 에러가 떴다. 그래서 signInWithGoogle() 안으로 lazy 이동.
 
 
 
@@ -132,8 +131,15 @@ const generateCodeChallenge = async (codeVerifier: string): Promise<string> => {
 
 // Google Sign In with native modal and backend integration
 export const signInWithGoogle = async () => {
-  
+
   try {
+    // Google Sign-In 설정 — 실제 구글 로그인 시도할 때만 lazy 호출.
+    // (iOS 에 iosClientId 없으면 실패하지만 이 try 안이라 catch 가 처리 → 빨간 에러 X)
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: true,
+      forceCodeForRefreshToken: true,
+    });
     // Check if Play Services are available (Android only)
     await GoogleSignin.hasPlayServices();
     // console.log("Google Signin Start");
