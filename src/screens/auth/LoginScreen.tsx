@@ -694,58 +694,7 @@ const LoginScreen: React.FC = () => {
             <Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text>
 
             <View style={styles.socialButtons}>
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('google')}
-                disabled={isSocialLoading}
-              >
-                <Image
-                  source={require('../../assets/icons/google.png')}
-                  style={styles.socialIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.socialButtonText}>google</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('kakao')}
-                disabled={isSocialLoading}
-              >
-                <Image
-                  source={require('../../assets/icons/kakao.png')}
-                  style={styles.socialIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.socialButtonText}>kakao</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('naver')}
-                disabled={isSocialLoading}
-              >
-                <Image
-                  source={require('../../assets/icons/naver.png')}
-                  style={styles.socialIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.socialButtonText}>naver</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('facebook')}
-                disabled={isSocialLoading}
-              >
-                <Image
-                  source={require('../../assets/icons/facebook.png')}
-                  style={styles.socialIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.socialButtonText}>facebook</Text>
-              </TouchableOpacity>
-
+              {/* 애플 로그인만 노출 — google/kakao/naver/facebook 제거(사용자 요청) */}
               <TouchableOpacity
                 style={styles.socialButton}
                 onPress={() => handleSocialLogin('apple')}
