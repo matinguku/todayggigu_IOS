@@ -2,8 +2,10 @@ import { Platform, Linking } from 'react-native';
 import React from 'react';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import appleAuth from '@invertase/react-native-apple-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SocialLoginOptions, SocialLoginResult } from '../types';
-import { API_BASE_URL } from '../constants';
+import { API_BASE_URL, STORAGE_KEYS } from '../constants';
+import { storeAuthData } from './authApi';
 
 // React Native CLI alternatives for Expo packages
 // Note: OAuth flows for Facebook, Twitter, and Kakao require additional setup
@@ -205,6 +207,16 @@ export const signInWithGoogle = async () => {
     // Extract user data from backend response (same format as login)
     const { user, token, refreshToken } = backendData.data;
 
+    // 토큰 영속 저장(이메일 로그인 apiLogin 과 동일) — 이후 인증 API 호출과
+    // 앱 재시작 시 세션 유지를 위해 USER_TOKEN/REFRESH_TOKEN 을 저장한다.
+    // 이게 없으면 로그인 직후엔 동작해도 재시작 시 로그아웃되고 인증 API 가 실패한다.
+    if (token) {
+      await storeAuthData(token, user);
+      if (refreshToken) {
+        await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+      }
+    }
+
     return {
       success: true,
       data: {
@@ -345,6 +357,16 @@ export const signInWithApple = async () => {
     }
 
     const { user, token, refreshToken } = backendData.data;
+
+    // 토큰 영속 저장(이메일 로그인 apiLogin 과 동일) — 이후 인증 API 호출과
+    // 앱 재시작 시 세션 유지를 위해 USER_TOKEN/REFRESH_TOKEN 을 저장한다.
+    // 이게 없으면 로그인 직후엔 동작해도 재시작 시 로그아웃되고 인증 API 가 실패한다.
+    if (token) {
+      await storeAuthData(token, user);
+      if (refreshToken) {
+        await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+      }
+    }
 
     return {
       success: true,
