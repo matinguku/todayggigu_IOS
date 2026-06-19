@@ -2458,13 +2458,16 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
                       </Text>
                     </View>
                   ) : (
-                    <View style={styles.deliveryAddressFilledBox}>
-                      {/* 주소 표시 전용 — 클릭 시 수령인 picker 가 뜨던 기능 제거(사용자 요청).
-                          주소 변경/관리는 위쪽 '배송 주소 확인' 액션 버튼으로만 가능. */}
+                    <TouchableOpacity
+                      style={styles.deliveryAddressFilledBox}
+                      onPress={handleUseNewAddress}
+                      activeOpacity={0.7}
+                    >
+                      {/* 배송지 탭 → '새 주소 추가' 모달이 열려 배송지를 변경할 수 있다. */}
                       <Text style={styles.deliveryAddressFilledText} numberOfLines={3}>
                         {deliveryAddressLabel || t('cartOrder.orderModal.selectPlaceholder')}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
@@ -2580,8 +2583,11 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
             </ScrollView>
           </View>
         </View>
-      </Modal>
 
+      {/* AddNewAddressModal·라벨 모달을 발주정보 모달 '안'에 중첩한다.
+          iOS 에서는 형제(sibling) Modal 이 이미 떠 있는 모달 위로 안 뜨므로,
+          이 모달들을 발주모달의 자식으로 두어 위에 정상 표시되게 한다.
+          (발주모달 닫는 </Modal> 은 라벨 모달 뒤로 이동됨) */}
       <AddNewAddressModal
         visible={showAddNewAddressModal}
         onClose={() => setShowAddNewAddressModal(false)}
@@ -2802,6 +2808,8 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
             </View>
           </View>
         </View>
+      </Modal>
+      {/* ↑ 라벨설정 모달 끝. 아래는 발주정보 모달 닫기(위 모달들을 중첩했으므로) */}
       </Modal>
 
       {/* 부가서비스선택 MODAL */}
