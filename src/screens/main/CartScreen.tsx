@@ -307,6 +307,15 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
 
   // Order modal state
   const [showOrderModal, setShowOrderModal] = useState(false);
+  // iOS 는 모달 위에 모달이 안 뜨므로, 배송지/라벨 모달을 열 땐 발주정보 모달을
+  // 먼저 닫고 그 모달을 연 뒤, 닫히면 발주정보 모달을 다시 연다. 이 플래그가 '다시 열기' 여부.
+  const [reopenOrderModal, setReopenOrderModal] = useState(false);
+  const reopenOrderModalIfNeeded = useCallback(() => {
+    setReopenOrderModal((should) => {
+      if (should) setTimeout(() => setShowOrderModal(true), 350);
+      return false;
+    });
+  }, []);
   const [negotiationContentImages, setNegotiationContentImages] = useState<
     NegotiationImageEntry[]
   >([]);
@@ -676,15 +685,20 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
   };
 
   const openLabelModal = (cardId: string) => {
-    setLabelModalCardId(cardId);
+    // 발주모달 닫고(슬라이드 종료 후) 라벨 모달 연다. 닫히면 발주모달 재오픈.
+    setReopenOrderModal(true);
+    setShowOrderModal(false);
+    setTimeout(() => setLabelModalCardId(cardId), 350);
   };
 
   const closeLabelModal = () => {
     setLabelModalCardId(null);
+    reopenOrderModalIfNeeded();
   };
 
   const saveLabel = () => {
     setLabelModalCardId(null);
+    reopenOrderModalIfNeeded();
   };
 
   const pickLabelFile = async () => {
@@ -1301,7 +1315,10 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
   }, [addressesForCustoms, t]);
 
   const handleUseNewAddress = useCallback(() => {
-    setShowAddNewAddressModal(true);
+    // 발주모달을 먼저 닫고(슬라이드 종료 후) 새 주소 모달을 연다. 닫히면 발주모달 재오픈.
+    setReopenOrderModal(true);
+    setShowOrderModal(false);
+    setTimeout(() => setShowAddNewAddressModal(true), 350);
   }, []);
 
   const handleManageAddresses = useCallback(() => {
@@ -2583,14 +2600,14 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
             </ScrollView>
           </View>
         </View>
+      </Modal>
 
-      {/* AddNewAddressModal·라벨 모달을 발주정보 모달 '안'에 중첩한다.
-          iOS 에서는 형제(sibling) Modal 이 이미 떠 있는 모달 위로 안 뜨므로,
-          이 모달들을 발주모달의 자식으로 두어 위에 정상 표시되게 한다.
-          (발주모달 닫는 </Modal> 은 라벨 모달 뒤로 이동됨) */}
       <AddNewAddressModal
         visible={showAddNewAddressModal}
-        onClose={() => setShowAddNewAddressModal(false)}
+        onClose={() => {
+          setShowAddNewAddressModal(false);
+          reopenOrderModalIfNeeded();
+        }}
         onSuccess={() => {
           void refreshOrderProfile();
         }}
@@ -2808,8 +2825,6 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
             </View>
           </View>
         </View>
-      </Modal>
-      {/* ↑ 라벨설정 모달 끝. 아래는 발주정보 모달 닫기(위 모달들을 중첩했으므로) */}
       </Modal>
 
       {/* 부가서비스선택 MODAL */}
