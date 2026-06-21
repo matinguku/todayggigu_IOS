@@ -755,19 +755,8 @@ const HomeScreen: React.FC = () => {
           accessibilityLabel="mascot"
         />
         <View><View><Text style={styles.guestWelcomeHeadline1}>{t('home.guestWelcomeHeadline1')}</Text></View>
-        <Text style={styles.guestWelcomeHeadline2}>
-          {String(t('home.guestWelcomeHeadline2'))
-            .split(/(1688)/)
-            .map((part, i) =>
-              part === '1688' ? (
-                <Text key={i} style={{ color: COLORS.red }}>
-                  {part}
-                </Text>
-              ) : (
-                part
-              ),
-            )}
-        </Text></View>
+        {/* '안녕하세요!' 밑의 부제(1688 플랫폼 기반...) 제거(사용자 요청) */}
+        </View>
       </View>
       <View style={styles.guestQuickStrip}>
         {([
