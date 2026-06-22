@@ -2524,6 +2524,61 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* 배송주소 선택 오버레이 — iOS 는 모달 위에 모달이 안 떠서 발주모달
+              안의 절대위치 오버레이로 구현. 등록 주소를 라디오로 한 개만 선택.
+              (이미지 디자인: 제목 + 라디오 목록 + 하단 '취소' 버튼) */}
+          {showAddressSelect && (
+            <View style={styles.addrSelectOverlay}>
+              <TouchableOpacity
+                style={styles.addrSelectBackdrop}
+                activeOpacity={1}
+                onPress={() => setShowAddressSelect(false)}
+              />
+              <View style={styles.addrSelectCard}>
+                <Text style={styles.addrSelectTitle}>
+                  {t('cartOrder.orderModal.selectRecipient')}
+                </Text>
+                <View style={styles.addrSelectDivider} />
+                <ScrollView style={styles.addrSelectList} showsVerticalScrollIndicator={false}>
+                  {addressesForCustoms.map((addr) => {
+                    const selected = addr._id === selectedAddressId;
+                    return (
+                      <TouchableOpacity
+                        key={addr._id}
+                        style={styles.addrSelectRow}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setSelectedAddressId(addr._id);
+                          setShowAddressSelect(false);
+                        }}
+                      >
+                        <View style={[styles.addrRadioOuter, selected && styles.addrRadioOuterOn]}>
+                          {selected && <View style={styles.addrRadioInner} />}
+                        </View>
+                        <Text
+                          style={[styles.addrSelectRowText, selected && styles.addrSelectRowTextOn]}
+                          numberOfLines={3}
+                        >
+                          {formatProfileAddressLabel(addr)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <View style={styles.addrSelectDivider} />
+                <TouchableOpacity
+                  style={styles.addrSelectCancelBtn}
+                  activeOpacity={0.7}
+                  onPress={() => setShowAddressSelect(false)}
+                >
+                  <Text style={styles.addrSelectCancelText}>
+                    {t('cartOrder.orderModal.cancel') || '취소'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       </Modal>
 
@@ -2601,54 +2656,6 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
               })()}
             </ScrollView>
           </View>
-          {/* 배송주소 선택 오버레이 — iOS 는 모달 위에 모달이 안 뜨므로 발주모달
-              안의 절대위치 오버레이로 구현. 등록된 주소를 라디오로 한 개만 선택.
-              주소가 하나뿐이면 그 주소가 selectedAddressId 로 이미 선택돼 보인다. */}
-          {showAddressSelect && (
-            <View style={styles.addrSelectOverlay}>
-              <TouchableOpacity
-                style={styles.addrSelectBackdrop}
-                activeOpacity={1}
-                onPress={() => setShowAddressSelect(false)}
-              />
-              <View style={styles.addrSelectCard}>
-                <View style={styles.addrSelectHeader}>
-                  <Text style={styles.addrSelectTitle}>
-                    {t('cartOrder.orderModal.selectRecipient')}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowAddressSelect(false)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Icon name="close" size={20} color={COLORS.text.primary} />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView style={styles.addrSelectList} showsVerticalScrollIndicator={false}>
-                  {addressesForCustoms.map((addr) => {
-                    const selected = addr._id === selectedAddressId;
-                    return (
-                      <TouchableOpacity
-                        key={addr._id}
-                        style={[styles.addrSelectRow, selected && styles.addrSelectRowSelected]}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          setSelectedAddressId(addr._id);
-                          setShowAddressSelect(false);
-                        }}
-                      >
-                        <View style={[styles.addrRadioOuter, selected && styles.addrRadioOuterOn]}>
-                          {selected && <View style={styles.addrRadioInner} />}
-                        </View>
-                        <Text style={styles.addrSelectRowText} numberOfLines={3}>
-                          {formatProfileAddressLabel(addr)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </View>
-          )}
         </View>
       </Modal>
 
@@ -5032,6 +5039,23 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     fontWeight: '700',
     color: COLORS.text.primary,
+    textAlign: 'center',
+    paddingBottom: SPACING.sm,
+  },
+  addrSelectDivider: {
+    height: 1,
+    backgroundColor: COLORS.gray[200],
+    marginHorizontal: -SPACING.md,
+  },
+  addrSelectCancelBtn: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addrSelectCancelText: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: '700',
+    color: COLORS.text.primary,
   },
   addrSelectList: {
     flexGrow: 0,
@@ -5054,6 +5078,10 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.sm,
     color: COLORS.text.primary,
     lineHeight: Math.round(FONTS.sizes.sm * 1.4),
+  },
+  addrSelectRowTextOn: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   addrRadioOuter: {
     width: 20,
