@@ -640,7 +640,10 @@ const ViewedProductsScreen: React.FC<ViewedProductsScreenProps> = ({
       </View>
 
       {isManagementMode && viewedProducts.length > 0 && (
-        <SafeAreaView style={styles.footerSafeArea} edges={['bottom']}>
+        // 앱 루트(App.tsx)가 이미 edges={['bottom']} 로 하단 인셋을 차지하므로
+        // 여기서 또 SafeAreaView 를 쓰면 인셋이 이중 적용돼 버튼띠가 화면 밑에서 떠 보였음.
+        // 일반 View 로 바꿔 버튼띠를 화면 하단에 바싹 붙인다.
+        <View style={styles.footerSafeArea}>
         <View style={styles.footer}>
           {selectedProductIds.size > 0 ? (
             <>
@@ -730,7 +733,7 @@ const ViewedProductsScreen: React.FC<ViewedProductsScreenProps> = ({
             </View>
           )}
         </View>
-        </SafeAreaView>
+        </View>
       )}
 
       {/* Delete All Confirmation Modal */}
