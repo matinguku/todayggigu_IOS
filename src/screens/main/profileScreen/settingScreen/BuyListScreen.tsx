@@ -1870,7 +1870,20 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
         <View style={styles.productMainCol}>
           <Image source={{ uri: item.image }} style={styles.productImage} resizeMode="cover" />
           <View style={styles.productInfo}>
-            <Text style={styles.productTitle} numberOfLines={2}>{item.productName}</Text>
+            {/* 상품명 클릭 → 해당 상품 상세 페이지로 이동 */}
+            <TouchableOpacity
+              activeOpacity={0.6}
+              disabled={!String(item.offerId ?? '').trim()}
+              onPress={() =>
+                void navigateToProductDetail(
+                  String(item.offerId ?? '').trim(),
+                  item.source || selectedPlatform,
+                  locale,
+                )
+              }
+            >
+              <Text style={styles.productTitle} numberOfLines={2}>{item.productName}</Text>
+            </TouchableOpacity>
             {specLines.map((line, index) => (
               <Text key={`${uniqueKey}-spec-${index}`} style={styles.productSpecs} numberOfLines={1}>
                 {line}
