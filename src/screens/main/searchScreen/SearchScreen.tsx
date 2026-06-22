@@ -1903,10 +1903,10 @@ const SearchScreenComponent: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.black,
+    backgroundColor: COLORS.white,
   },
   safeArea: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
     flex: 1,
   },
   contentContainer: {
@@ -1926,7 +1926,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.sm,
-    paddingTop: SPACING['3xl'],
+    paddingTop: SPACING.sm,
     paddingBottom: SPACING.sm,
     gap: SPACING.sm,
   },
