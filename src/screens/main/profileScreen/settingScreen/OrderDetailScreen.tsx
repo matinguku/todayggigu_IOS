@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { WebView } from 'react-native-webview';
 import Icon from '../../../../components/Icon';
 import EditIcon from '../../../../assets/icons/EditIcon';
+import { fetchAdditionalServices } from '../../../../services/additionalServicesApi';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../../../constants';
 import { useToast } from '../../../../context/ToastContext';
@@ -134,6 +135,38 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
     customsCode: '',
   });
   const [labelViewer, setLabelViewer] = useState<ResolvedOrderItemLabel | null>(null);
+  // 부가서비스 카탈로그 (서비스 id → 아이콘/이름). 주문 아이템의 addServices[].id
+  // 를 이 카탈로그와 매핑해 해당 부가서비스 아이콘을 표시한다.
+  const [serviceCatalog, setServiceCatalog] = useState<
+    Record<string, { icon?: string; imageUrl?: string; name: string }>
+  >({});
+  // 날짜 클릭 시 뜨는 예정일(업체출고/창고도착/국제출고) 모달.
+  const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
+  // 입고사진 뷰어 — 관리자가 입고스캔 때 올린 사진을 크게 본다.
+  const [inboundPhotoViewer, setInboundPhotoViewer] = useState<string[] | null>(null);
+
+  // 부가서비스 카탈로그 1회 로드 (아이콘 매핑용).
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await fetchAdditionalServices();
+        if (!alive || !res.success || !Array.isArray(res.data)) return;
+        const map: Record<string, { icon?: string; imageUrl?: string; name: string }> = {};
+        for (const s of res.data) {
+          if (s && s.id != null) {
+            map[String(s.id)] = { icon: s.icon, imageUrl: s.imageUrl, name: s.name };
+          }
+        }
+        setServiceCatalog(map);
+      } catch {
+        /* 카탈로그 로드 실패해도 부가서비스는 "-" 로 표시 */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) {
@@ -238,6 +271,34 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
   }, [order?.progressStatus, t]);
 
   const address = order?.shippingAddress;
+  // 예정일(업체출고/창고도착/국제출고). Order 는 [key:string]:any 라 백엔드가
+  // 어떤 키로 주든 여러 후보를 폴백으로 읽고, 없으면 "-" 로 표시(스크린샷과 동일).
+  const pickScheduleDate = (...keys: string[]): string => {
+    const o = order as Record<string, any> | null;
+    if (!o) return dash;
+    for (const k of keys) {
+      const v = o[k] ?? o.orderMainInfo?.[k];
+      if (v) {
+        const d = formatOrderDateTime(v).split(' ')[0];
+        if (d) return d;
+      }
+    }
+    return dash;
+  };
+  const scheduleDates = {
+    supplierShip: pickScheduleDate(
+      'supplierShipExpectedDate', 'factoryShipExpectedDate',
+      'vendorDispatchExpectedDate', 'supplierDispatchExpectedDate', 'supplierShipDate',
+    ),
+    warehouseArrival: pickScheduleDate(
+      'warehouseArrivalExpectedDate', 'warehouseArrivalDate',
+      'centerArrivalExpectedDate', 'centerArrivalDate',
+    ),
+    intlShip: pickScheduleDate(
+      'internationalShipExpectedDate', 'intlShipExpectedDate',
+      'overseasShipExpectedDate', 'internationalShipDate',
+    ),
+  };
   const orderMainInfo = order?.orderMainInfo ?? {};
   const firstTier = order?.firstTierCost ?? {};
   const paidPayment = (order?.orderPayments ?? []).find(
@@ -363,11 +424,19 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
     const specLines = formatSkuLines(item);
     const storeName = resolveStoreName(item);
     const is1688 = String(item.otherSite ?? item.source ?? '').includes('1688');
-    const resultText =
+    const statusText =
       resolveOrderItemProductStatusLabel(item.productStatus, t) || dash;
     const noteText = resolveOrderItemNote(item) || dash;
     const labelConfigured = hasOrderItemLabel(item.barcodeInfo);
     const resolvedLabel = resolveOrderItemLabel(item, title);
+    // 부가서비스 목록 — addServices[].id 를 카탈로그와 매핑해 아이콘 표시. 없으면 "-".
+    const addServiceList = (Array.isArray(item.addServices) ? item.addServices : []) as Array<{
+      id?: string | number;
+    }>;
+    // 입고사진(관리자가 입고스캔 때 올린 사진). 없으면 "-".
+    const inboundPhotos = (Array.isArray(item.incomeImgUrl) ? item.incomeImgUrl : []).filter(
+      (u): u is string => typeof u === 'string' && !!u,
+    );
 
     return (
       <View key={item.id || item._id || index} style={styles.productCard}>
@@ -414,10 +483,68 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
             </Text>
           </View>
         </View>
+        {/* 부가서비스 — 없으면 "-", 있으면 해당 부가서비스 아이콘 */}
         <View style={styles.productMetaRow}>
-          <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.result')}</Text>
-          <Text style={styles.productMetaValue}>{resultText}</Text>
+          <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.additionalService')}</Text>
+          {addServiceList.length > 0 ? (
+            <View style={styles.addServiceIconRow}>
+              {addServiceList.map((svc, i) => {
+                const cat = serviceCatalog[String(svc?.id ?? '')];
+                const iconUri = cat?.icon || cat?.imageUrl;
+                return iconUri ? (
+                  <Image
+                    key={`${svc?.id ?? i}`}
+                    source={{ uri: iconUri }}
+                    style={styles.addServiceIcon}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View key={`${svc?.id ?? i}`} style={styles.addServiceIconFallback}>
+                    <Icon name="construct-outline" size={14} color={COLORS.primary} />
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.productMetaValue}>{dash}</Text>
+          )}
         </View>
+        {/* 상태 — 입고 상태(미입고/입고완료 등) */}
+        <View style={styles.productMetaRow}>
+          <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.status')}</Text>
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusBadgeText}>{statusText}</Text>
+          </View>
+        </View>
+        {/* 날짜 — 클릭 시 예정일(업체출고/창고도착/국제출고) 모달 */}
+        <View style={styles.productMetaRow}>
+          <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.date')}</Text>
+          <TouchableOpacity
+            onPress={() => setScheduleModalVisible(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.productMetaValue, styles.productMetaDate]}>
+              {formatOrderDateTime(order?.createdAt).split(' ')[0] || dash}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {/* 사진 — 관리자 입고사진. 없으면 "-", 있으면 보기 */}
+        <View style={styles.productMetaRow}>
+          <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.photo')}</Text>
+          {inboundPhotos.length > 0 ? (
+            <TouchableOpacity
+              onPress={() => setInboundPhotoViewer(inboundPhotos)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.labelCheckLink}>
+                {t('profile.orderDetailPage.labelCheckView')}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.productMetaValue}>{dash}</Text>
+          )}
+        </View>
+        {/* 라벨확인 */}
         <View style={styles.productMetaRow}>
           <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.labelCheck')}</Text>
           {labelConfigured && resolvedLabel ? (
@@ -433,25 +560,12 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
             <Text style={styles.productMetaValue}>{dash}</Text>
           )}
         </View>
+        {/* 비고 */}
         <View style={styles.productMetaRow}>
           <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.note')}</Text>
           <Text style={styles.productMetaValue} numberOfLines={2}>
             {noteText}
           </Text>
-        </View>
-        <View style={styles.productMetaRow}>
-          <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.date')}</Text>
-          <Text style={[styles.productMetaValue, styles.productMetaDate]}>
-            {formatOrderDateTime(order?.createdAt).split(' ')[0] || dash}
-          </Text>
-        </View>
-        <View style={styles.productMetaRow}>
-          <Text style={styles.productMetaLabel}>{t('profile.orderDetailPage.status')}</Text>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusBadgeText}>
-              {t('profile.orderDetailPage.completedBadge')}
-            </Text>
-          </View>
         </View>
       </View>
     );
@@ -867,6 +981,94 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
         </View>
       </Modal>
 
+      {/* 예정일 모달 — 날짜 클릭 시 표시 */}
+      <Modal
+        supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
+        visible={scheduleModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setScheduleModalVisible(false)}
+      >
+        <View style={styles.labelModalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setScheduleModalVisible(false)}
+          />
+          <View style={styles.labelModalCard}>
+            <View style={styles.labelModalHeader}>
+              <Text style={styles.labelModalTitle}>
+                {t('profile.orderDetailPage.scheduledDates')}
+              </Text>
+              <TouchableOpacity onPress={() => setScheduleModalVisible(false)}>
+                <Icon name="close" size={20} color={COLORS.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.scheduleModalBody}>
+              <View style={styles.scheduleRow}>
+                <Text style={styles.scheduleRowLabel}>
+                  {t('profile.orderDetailPage.supplierShipDate')}
+                </Text>
+                <Text style={styles.scheduleRowValue}>{scheduleDates.supplierShip}</Text>
+              </View>
+              <View style={styles.scheduleRow}>
+                <Text style={styles.scheduleRowLabel}>
+                  {t('profile.orderDetailPage.warehouseArrivalDate')}
+                </Text>
+                <Text style={styles.scheduleRowValue}>{scheduleDates.warehouseArrival}</Text>
+              </View>
+              <View style={styles.scheduleRow}>
+                <Text style={styles.scheduleRowLabel}>
+                  {t('profile.orderDetailPage.intlShipDate')}
+                </Text>
+                <Text style={styles.scheduleRowValue}>{scheduleDates.intlShip}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 입고사진 뷰어 — 사진 행의 "보기" 클릭 시 표시 */}
+      <Modal
+        supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
+        visible={inboundPhotoViewer !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInboundPhotoViewer(null)}
+      >
+        <View style={styles.labelModalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setInboundPhotoViewer(null)}
+          />
+          <View style={styles.labelModalCard}>
+            <View style={styles.labelModalHeader}>
+              <Text style={styles.labelModalTitle}>
+                {t('profile.orderDetailPage.inboundPhotos')}
+              </Text>
+              <TouchableOpacity onPress={() => setInboundPhotoViewer(null)}>
+                <Icon name="close" size={20} color={COLORS.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.labelModalBody}
+              contentContainerStyle={styles.labelModalBodyContent}
+              showsVerticalScrollIndicator
+            >
+              {(inboundPhotoViewer ?? []).map((uri, idx) => (
+                <Image
+                  key={`${uri}-${idx}`}
+                  source={{ uri }}
+                  style={styles.inboundPhotoFull}
+                  resizeMode="contain"
+                />
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Address edit modal */}
       <Modal
       supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
@@ -1209,6 +1411,38 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   productMetaDate: { color: COLORS.red, textDecorationLine: 'underline' },
+  addServiceIconRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  addServiceIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.gray[100],
+  },
+  addServiceIconFallback: {
+    width: 22,
+    height: 22,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.primary + '14',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduleModalBody: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[100],
+  },
+  scheduleRowLabel: { fontSize: FONTS.sizes.sm, color: COLORS.text.primary },
+  scheduleRowValue: { fontSize: FONTS.sizes.sm, color: COLORS.text.secondary },
+  inboundPhotoFull: {
+    width: '100%',
+    minHeight: 240,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.gray[100],
+  },
   labelModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
