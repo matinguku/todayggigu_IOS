@@ -392,6 +392,29 @@ export const resolveCheckoutLineUnitPriceKRW = (
   return fallback > 0 ? fallback : 0;
 };
 
+/**
+ * 주문 라인아이템의 상품 상세 페이지 링크(`detailImgUrl`).
+ * 관리자에서 상품명을 클릭하면 이 링크로 원본 상품상세 페이지로 이동한다.
+ * 카트/체크아웃 행에 원본 detailImgUrl 이 있으면 그대로 쓰고, 없으면
+ * offerId + 마켓플레이스(1688/taobao)로 원본 상세 URL 을 생성한다.
+ */
+export const buildOrderItemDetailUrl = (
+  offerId: number | string | null | undefined,
+  siteOrSource?: string,
+  rawDetailImgUrl?: unknown,
+): string | undefined => {
+  if (typeof rawDetailImgUrl === 'string' && rawDetailImgUrl.trim()) {
+    return rawDetailImgUrl.trim();
+  }
+  const numericId = String(offerId ?? '').replace(/[^0-9]/g, '');
+  if (!numericId) return undefined;
+  const s = String(siteOrSource ?? '').toLowerCase();
+  if (s.includes('taobao')) return `https://item.taobao.com/item.htm?id=${numericId}`;
+  if (s.includes('tmall')) return `https://detail.tmall.com/item.htm?id=${numericId}`;
+  // 기본: 1688 원본 상세 페이지
+  return `https://detail.1688.com/offer/${numericId}.html`;
+};
+
 /** Build web-shaped `items` for orders-proxy from checkout/cart rows. */
 export const buildOrdersProxyLineItems = (
   cartItemIds: string[],
@@ -448,6 +471,9 @@ export const buildOrdersProxyLineItems = (
     const specIdRaw = skuInfo?.specId ?? raw?.specId ?? card?.specId;
     const specId = specIdRaw != null && String(specIdRaw).trim() ? String(specIdRaw) : undefined;
     const otherSite = toOtherSite(source);
+    const offerIdValue = (raw?.offerId as number | string | undefined) ?? card?.offerId ?? '';
+    // 관리자에서 상품명 클릭 → 상품상세로 이동할 수 있도록 상품링크를 detailImgUrl 로 전송.
+    const detailImgUrl = buildOrderItemDetailUrl(offerIdValue, otherSite, raw?.detailImgUrl);
     const unitPriceKRW =
       resolveCheckoutLineUnitPriceKRW(raw, card?.unitPriceCNY) ||
       coerceOrderAmount(card?.unitPriceKRW);
@@ -455,7 +481,8 @@ export const buildOrdersProxyLineItems = (
 
     return {
       otherSite,
-      offerId: (raw?.offerId as number | string | undefined) ?? card?.offerId ?? '',
+      offerId: offerIdValue,
+      ...(detailImgUrl ? { detailImgUrl } : {}),
       ...(skuId != null && skuId !== '' ? { skuId } : {}),
       ...(specId ? { specId } : {}),
       ...(skuInfo && typeof skuInfo === 'object' ? { skuInfo } : {}),
@@ -653,12 +680,17 @@ export const buildCreateOrderLineItems = (
       resolveCheckoutLineUnitPriceKRW(raw, card?.unitPriceCNY) ||
       coerceOrderAmount(card?.unitPriceKRW);
     const subtotalKRW = unitPriceKRW > 0 ? unitPriceKRW * qty : undefined;
+    const offerIdValue = (raw?.offerId as number | string | undefined) ?? card?.offerId;
+    const source = String(raw?.source ?? card?.source ?? '1688');
+    // 관리자에서 상품명 클릭 → 상품상세로 이동할 수 있도록 상품링크를 detailImgUrl 로 전송.
+    const detailImgUrl = buildOrderItemDetailUrl(offerIdValue, source, raw?.detailImgUrl);
 
     return {
       cartItemId,
       _id: cartItemId,
-      offerId: (raw?.offerId as number | string | undefined) ?? card?.offerId,
-      source: String(raw?.source ?? card?.source ?? '1688'),
+      offerId: offerIdValue,
+      source,
+      ...(detailImgUrl ? { detailImgUrl } : {}),
       subject: title,
       productName: title,
       subjectTrans: raw?.subjectTrans != null ? String(raw.subjectTrans) : undefined,
