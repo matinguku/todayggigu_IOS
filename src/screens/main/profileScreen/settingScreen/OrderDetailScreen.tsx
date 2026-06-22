@@ -20,7 +20,7 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../../../constants';
 import { useToast } from '../../../../context/ToastContext';
 import {
   coerceDisplayText,
-  formatPriceKRW,
+  formatPriceCNY,
   resolveOrderItemCompanyName,
 } from '../../../../utils/i18nHelpers';
 import { useTranslation } from '../../../../hooks/useTranslation';
@@ -66,7 +66,7 @@ const formatOrderDateTime = (iso?: string): string => {
   return `${y}-${m}-${day} ${hh}:${mm}`;
 };
 
-const formatCny = (value: number): string => `¥ ${value.toFixed(2)}`;
+const formatCny = (value: number): string => formatPriceCNY(value);
 
 const translateOrderOptionLabel = (value: string, translate: (key: string) => string): string => {
   if (!value) return '';
@@ -454,12 +454,12 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
           </View>
           <View style={styles.metricCell}>
             <Text style={styles.metricLabel}>{t('profile.orderDetailPage.unitPrice')}</Text>
-            <Text style={styles.metricValue}>{formatPriceKRW(unitPrice)}</Text>
+            <Text style={styles.metricValue}>{formatCny(unitPrice)}</Text>
           </View>
           <View style={styles.metricCell}>
             <Text style={styles.metricLabel}>{t('profile.orderDetailPage.amount')}</Text>
             <Text style={[styles.metricValue, styles.metricValueAccent]}>
-              {formatPriceKRW(lineAmount)}
+              {formatCny(lineAmount)}
             </Text>
           </View>
         </View>
@@ -740,7 +740,7 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
             {renderSectionHeading(t('profile.orderDetailPage.paymentInfo'))}
             {renderInfoField(
               t('profile.orderDetailPage.paymentAmount'),
-              formatPriceKRW(paymentKRW),
+              formatCny(paymentKRW),
             )}
             {renderInfoField(
               t('profile.orderDetailPage.paymentMethod'),
@@ -761,7 +761,7 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
             ) : (
               (order.orderPayments ?? []).map((p: any, idx: number) => (
                 <Text key={p._id || idx} style={styles.paymentRecordLine}>
-                  {paymentMethodLabel(p.paymentMethod, t)} {formatPriceKRW(p.amountKRW)}{' '}
+                  {paymentMethodLabel(p.paymentMethod, t)} {formatCny(p.amountKRW)}{' '}
                   {p.status === 'paid'
                     ? formatOrderDateTime(p.paidAt)
                     : t('profile.orderDetailPage.dash')}
@@ -851,7 +851,7 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
               {t('profile.orderDetailPage.fee')} {formatCny(feeCny)}
             </Text>
             <Text style={styles.summaryTopText}>
-              {t('profile.orderDetailPage.additionalServiceFee')} {formatPriceKRW(serviceFeeKrw)}
+              {t('profile.orderDetailPage.additionalServiceFee')} {formatCny(serviceFeeKrw)}
             </Text>
           </View>
           <View style={styles.summaryBottomRow}>
@@ -866,7 +866,7 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
               </Text>
             </TouchableOpacity>
             <Text style={styles.finalPaymentText}>
-              {t('profile.amountPaid')} {formatPriceKRW(paymentKRW)}
+              {t('profile.amountPaid')} {formatCny(paymentKRW)}
             </Text>
           </View>
         </View>

@@ -396,6 +396,15 @@ export const formatKRWDirect = (krwPrice: number): string => {
   return `₩${krwPrice.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 };
 
+// 가격을 중국 위안(¥)·소수점 2자리로 표시. 환율 변환계수가 비활성(=1)이라
+// 주문 가격 값들은 사실상 원본 CNY 금액이므로, 값 변환 없이 단위만 ¥ 로 표기한다.
+export const formatPriceCNY = (price: number): string => {
+  const n = Number.isFinite(price) ? price : 0;
+  const [intPart, decPart] = Math.abs(n).toFixed(2).split('.');
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${n < 0 ? '-' : ''}¥${grouped}.${decPart}`;
+};
+
 // Helper function to format currency based on locale (now always returns KRW)
 export const formatCurrency = (amount: number, locale: 'en' | 'ko' | 'zh') => {
   // Always return KRW format regardless of locale

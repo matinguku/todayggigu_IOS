@@ -18,7 +18,7 @@ import { useAuth } from '../../../../context/AuthContext';
 import { useToast } from '../../../../context/ToastContext';
 import {
   coerceDisplayText,
-  formatKRWDirect,
+  formatPriceCNY,
   resolveOrderItemCompanyName,
 } from '../../../../utils/i18nHelpers';
 import {
@@ -48,13 +48,13 @@ const coerceAmount = (value: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** KRW amounts from order API are already in won (may be fractional). */
+/**
+ * 주문 금액 표시 — 환율 변환계수가 비활성(=1)이라 값들은 사실상 원본 CNY 금액이므로
+ * 단위를 ¥(중국 위안)·소수점 2자리로 표기한다. (함수명은 호환을 위해 유지)
+ */
 const formatOrderKRW = (amount: number): string => {
-  if (!Number.isFinite(amount) || amount <= 0) return '₩0';
-  if (amount > 0 && amount < 1) {
-    return `₩${amount.toFixed(2)}`;
-  }
-  return formatKRWDirect(amount);
+  if (!Number.isFinite(amount) || amount <= 0) return '¥0.00';
+  return formatPriceCNY(amount);
 };
 
 const resolveProductTotalKRW = (order: Order): number => {
@@ -448,7 +448,7 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
               placeholderTextColor={COLORS.gray[400]}
             />
             <Text style={styles.balanceText}>
-              {t('payment.balance')}: {formatKRWDirect(depositBalance)}
+              {t('payment.balance')}: {formatPriceCNY(depositBalance)}
             </Text>
             <TouchableOpacity
               style={styles.darkButton}

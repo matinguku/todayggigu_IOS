@@ -55,7 +55,7 @@ import { useAppSelector } from '../../../../store/hooks';
 import {
   coerceDisplayText,
   extractCompanyNameFromProductDetail,
-  formatPriceKRW,
+  formatPriceCNY,
   resolveOrderItemCompanyName,
 } from '../../../../utils/i18nHelpers';
 import { productsApi } from '../../../../services/productsApi';
@@ -1942,9 +1942,9 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
 
         <View style={styles.productUnitPriceCol}>
           <Text style={styles.unitPriceText}>
-            {formatPriceKRW(item.price)} x {item.quantity}
+            {formatPriceCNY(item.price)} x {item.quantity}
           </Text>
-          <Text style={styles.lineSubtotalText}>{formatPriceKRW(lineSubtotal)}</Text>
+          <Text style={styles.lineSubtotalText}>{formatPriceCNY(lineSubtotal)}</Text>
         </View>
       </View>
     );
@@ -2115,7 +2115,7 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
             </Text>
           </View>
           <Text style={styles.orderSummaryCenter}>
-            {(t('buyList.orderSum') || '주문 합계')} {formatPriceKRW(order.totalAmount)}
+            {(t('buyList.orderSum') || '주문 합계')} {formatPriceCNY(order.totalAmount)}
           </Text>
           {!!logisticsSummary && (
             <Text style={styles.orderSummaryRight} numberOfLines={2}>
@@ -3355,7 +3355,7 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
                             <Image source={{ uri: item.image }} style={styles.refundItemImage} />
                             <View style={{ flex: 1 }}>
                               <Text style={styles.refundItemName} numberOfLines={2}>{item.productName}</Text>
-                              <Text style={styles.refundItemPrice}>{formatPriceKRW(item.price)} x{item.quantity}</Text>
+                              <Text style={styles.refundItemPrice}>{formatPriceCNY(item.price)} x{item.quantity}</Text>
                             </View>
                           </TouchableOpacity>
                         );
