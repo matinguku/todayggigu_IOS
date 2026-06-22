@@ -1836,38 +1836,6 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
     });
   };
 
-  // Render store group header
-  const renderStoreHeader = (storeGroup: StoreGroup) => {
-    const headerItem = storeGroup.items[0];
-    const companyLabel = resolveStoreName(storeGroup.companyName, headerItem);
-    // 회사이름 클릭 → 해당 셀러의 상품 목록(SellerProfile)으로 이동.
-    // 1688 셀러상품 API 는 sellerOpenId 로 조회하므로 주문 아이템의 sellerOpenId 를 사용.
-    const sellerId = storeGroup.sellerOpenId || headerItem?.sellerOpenId || '';
-    const sellerSource =
-      headerItem?.source ||
-      (String(headerItem?.otherSite ?? '').includes('taobao') ? 'taobao' : '1688');
-    return (
-      <TouchableOpacity
-        style={styles.storeHeader}
-        activeOpacity={0.6}
-        disabled={!sellerId}
-        onPress={() =>
-          embedNavigate('SellerProfile', {
-            sellerId,
-            sellerName: companyLabel,
-            source: sellerSource,
-            country: locale,
-          })
-        }
-      >
-        <Text style={styles.storeName} numberOfLines={1}>
-          {companyLabel}
-        </Text>
-        <Text style={styles.storeName}>{'>'}</Text>
-      </TouchableOpacity>
-    );
-  };
-
   const copyOrderNumber = (orderNumber: string) => {
     Clipboard.setString(orderNumber);
     showToast(t('common.copied') || 'Copied', 'success');
@@ -2048,8 +2016,24 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
           <View key={`order-${order.id}-store-${storeIndex}`}>
             <TouchableOpacity
               style={styles.storeHeader}
-              onPress={() => openOrderDetail(order)}
               activeOpacity={0.7}
+              onPress={() => {
+                // 회사이름 클릭 → 해당 셀러의 상품 목록(SellerProfile)으로 이동.
+                // (주문상세 이동 아님) 1688 셀러상품 API 는 sellerOpenId 로 조회.
+                const headerItem = storeGroup.items[0];
+                const sellerId =
+                  storeGroup.sellerOpenId || headerItem?.sellerOpenId || '';
+                if (!sellerId) return;
+                const sellerSource =
+                  headerItem?.source ||
+                  (String(headerItem?.otherSite ?? '').includes('taobao') ? 'taobao' : '1688');
+                embedNavigate('SellerProfile', {
+                  sellerId,
+                  sellerName: resolveStoreName(storeGroup.companyName, headerItem),
+                  source: sellerSource,
+                  country: locale,
+                });
+              }}
             >
               <Text style={styles.storeName} numberOfLines={1}>
                 {resolveStoreName(storeGroup.companyName, storeGroup.items[0])} {'>'}
