@@ -13,9 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { WebView } from 'react-native-webview';
 import Icon from '../../../../components/Icon';
-import EditIcon from '../../../../assets/icons/EditIcon';
 import { fetchAdditionalServices } from '../../../../services/additionalServicesApi';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../../../constants';
@@ -123,17 +121,6 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
   const [loading, setLoading] = useState(!initialOrder);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>('products');
-  const [isSavingAddress, setIsSavingAddress] = useState(false);
-  const [addressModalVisible, setAddressModalVisible] = useState(false);
-  const [showKakaoAddress, setShowKakaoAddress] = useState(false);
-  const [editAddress, setEditAddress] = useState({
-    zonecode: '',
-    roadAddress: '',
-    detailAddress: '',
-    recipient: '',
-    contact: '',
-    customsCode: '',
-  });
   const [labelViewer, setLabelViewer] = useState<ResolvedOrderItemLabel | null>(null);
   // 부가서비스 카탈로그 (서비스 id → 아이콘/이름). 주문 아이템의 addServices[].id
   // 를 이 카탈로그와 매핑해 해당 부가서비스 아이콘을 표시한다.
@@ -357,13 +344,6 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
       });
     }
   };
-
-  const kakaoPostcodeHtml = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body><div id="wrap"></div>
-<script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
-<script>new daum.Postcode({oncomplete:function(d){window.ReactNativeWebView.postMessage(JSON.stringify({zonecode:d.zonecode,roadAddress:d.roadAddress||d.jibunAddress}));},width:'100%',height:'100%'}).embed(document.getElementById('wrap'));</script>
-</body></html>`;
 
   const renderSectionHeading = (label: string) => (
     <View style={styles.sectionHeading}>
@@ -754,27 +734,6 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
               t('profile.orderDetailPage.shippingMethod'),
               shippingMethodLabel,
             )}
-            <TouchableOpacity
-              style={styles.editAddressLink}
-              onPress={() => {
-                // 주문 주소(any)는 백엔드에 따라 우편번호 키가 zipCode/zipcode/postalCode 로
-                // 제각각이다. zipCode 만 읽으면 다른 변형일 때 zonecode 가 빈 채 모달이 열리고,
-                // 그대로 저장하면 백엔드가 새 주소의 배송비를 계산하지 못해
-                // "배송비용을 불러올 수 없다" 에러를 돌려준다. 모든 변형을 폴백으로 읽는다.
-                setEditAddress({
-                  zonecode: address?.zipCode || address?.zipcode || address?.postalCode || '',
-                  roadAddress: address?.detailedAddress || address?.street || address?.address || '',
-                  detailAddress: address?.detailedAddress || address?.street || address?.address || '',
-                  recipient: address?.recipient || address?.name || '',
-                  contact: address?.contact || address?.phone || '',
-                  customsCode: address?.personalCustomsCode || address?.customsCode || '',
-                });
-                setAddressModalVisible(true);
-              }}
-            >
-              <EditIcon width={14} height={14} color={COLORS.red} />
-              <Text style={styles.editAddressText}>{t('buyList.editAddress')}</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={[styles.infoColumn, { width: INFO_COLUMN_WIDTH }]}>
@@ -1068,149 +1027,6 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
           </View>
         </View>
       </Modal>
-
-      {/* Address edit modal */}
-      <Modal
-      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
-        visible={addressModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setAddressModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.addressModalContent}>
-            <View style={styles.addressModalHeader}>
-              <Text style={styles.addressModalTitle}>{t('buyList.editAddress')}</Text>
-              <TouchableOpacity onPress={() => setAddressModalVisible(false)}>
-                <Icon name="close" size={24} color={COLORS.text.primary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <TouchableOpacity
-                style={styles.addressSearchBtn}
-                onPress={() => setShowKakaoAddress(true)}
-              >
-                <Icon name="search" size={16} color={COLORS.white} />
-                <Text style={styles.addressSearchBtnText}>Search Address (Kakao)</Text>
-              </TouchableOpacity>
-              <Text style={styles.addressModalLabel}>{t('buyList.postalCode')}</Text>
-              <TextInput
-                style={styles.addressModalInput}
-                value={editAddress.zonecode}
-                onChangeText={(v) => setEditAddress((p) => ({ ...p, zonecode: v }))}
-              />
-              <Text style={styles.addressModalLabel}>{t('buyList.searchAddress')}</Text>
-              <TextInput
-                style={styles.addressModalInput}
-                value={editAddress.detailAddress}
-                onChangeText={(v) => setEditAddress((p) => ({ ...p, detailAddress: v }))}
-              />
-              <Text style={styles.addressModalLabel}>{t('profile.recipient')}</Text>
-              <TextInput
-                style={styles.addressModalInput}
-                value={editAddress.recipient}
-                onChangeText={(v) => setEditAddress((p) => ({ ...p, recipient: v }))}
-              />
-              <Text style={styles.addressModalLabel}>{t('profile.phone')}</Text>
-              <TextInput
-                style={styles.addressModalInput}
-                value={editAddress.contact}
-                onChangeText={(v) => setEditAddress((p) => ({ ...p, contact: v }))}
-                keyboardType="phone-pad"
-              />
-              <Text style={styles.addressModalLabel}>{t('profile.personalCustomsCode')}</Text>
-              <TextInput
-                style={styles.addressModalInput}
-                value={editAddress.customsCode}
-                onChangeText={(v) => setEditAddress((p) => ({ ...p, customsCode: v }))}
-              />
-              <TouchableOpacity
-                style={styles.addressModalSaveButton}
-                onPress={async () => {
-                  // 빈 필드(특히 우편번호)로 저장하면 백엔드가 새 주소의 배송비를
-                  // 계산하지 못해 "배송비용을 불러올 수 없다" 류 에러를 돌려준다.
-                  // 저장 전에 클라이언트에서 검증해 명확한 안내를 준다.
-                  const recipientV = editAddress.recipient.trim();
-                  const contactV = editAddress.contact.trim();
-                  const detailV = (editAddress.detailAddress || editAddress.roadAddress).trim();
-                  const zipV = editAddress.zonecode.trim();
-                  if (!recipientV) { showToast(t('profile.addressModal.recipientRequired'), 'error'); return; }
-                  if (!contactV) { showToast(t('profile.addressModal.contactRequired'), 'error'); return; }
-                  if (!detailV) { showToast(t('profile.addressModal.detailRequired'), 'error'); return; }
-                  if (!zipV) { showToast(t('profile.addressModal.postalRequired'), 'error'); return; }
-                  setIsSavingAddress(true);
-                  try {
-                    const res = await orderApi.updateShippingAddress(order.id, {
-                      recipient: recipientV,
-                      contact: contactV,
-                      detailedAddress: detailV,
-                      zipCode: zipV,
-                      personalCustomsCode: editAddress.customsCode,
-                      country: 'South Korea',
-                    });
-                    if (res.success) {
-                      showToast(t('profile.addressModal.updateSuccess'), 'success');
-                      setAddressModalVisible(false);
-                      await loadOrder();
-                    } else {
-                      showToast(res.error || t('profile.failedToUpdateAddress'), 'error');
-                    }
-                  } catch {
-                    showToast(t('profile.failedToUpdateAddress'), 'error');
-                  } finally {
-                    setIsSavingAddress(false);
-                  }
-                }}
-              >
-                {isSavingAddress ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : (
-                  <Text style={styles.addressModalSaveButtonText}>{t('profile.save')}</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
-        visible={showKakaoAddress}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowKakaoAddress(false)}
-      >
-        <View style={styles.kakaoModalOverlay}>
-          <View style={styles.kakaoModalContent}>
-            <View style={styles.kakaoModalHeader}>
-              <Text style={styles.kakaoModalTitle}>Search Address</Text>
-              <TouchableOpacity onPress={() => setShowKakaoAddress(false)}>
-                <Icon name="close" size={22} color={COLORS.text.primary} />
-              </TouchableOpacity>
-            </View>
-            <WebView
-              source={{ html: kakaoPostcodeHtml, baseUrl: 'https://postcode.map.daum.net' }}
-              style={{ flex: 1 }}
-              onMessage={(e) => {
-                try {
-                  const data = JSON.parse(e.nativeEvent.data);
-                  setEditAddress((prev) => ({
-                    ...prev,
-                    zonecode: data.zonecode || '',
-                    roadAddress: data.roadAddress || '',
-                    detailAddress: data.roadAddress || '',
-                  }));
-                  setShowKakaoAddress(false);
-                } catch {
-                  // ignore
-                }
-              }}
-              javaScriptEnabled
-              domStorageEnabled
-            />
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -1351,8 +1167,6 @@ const styles = StyleSheet.create({
   infoFieldLabel: { fontSize: 11, color: COLORS.text.secondary, marginBottom: 2 },
   infoFieldValue: { fontSize: FONTS.sizes.sm, color: COLORS.text.primary, lineHeight: Math.round(FONTS.sizes.sm * 18 / 14) },
   paymentRecordLine: { fontSize: FONTS.sizes.xs, color: COLORS.text.primary, marginBottom: 4 },
-  editAddressLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  editAddressText: { fontSize: FONTS.sizes.xs, color: COLORS.red, fontWeight: '600' },
   tabRow: {
     flexDirection: 'row',
     backgroundColor: COLORS.white,
