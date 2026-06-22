@@ -1845,6 +1845,33 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
     embedNavigate('OrderDetail', { orderId: order.id, order });
   };
 
+  // "결제중"(무통장 결제 신청) 취소 — POST /orders/:id/cancel-pending-payment
+  // body: { parentOrderNumber }. 성공 시 로컬 결제중 마크를 지우고 목록 갱신.
+  const [cancelingPaymentId, setCancelingPaymentId] = useState<string | null>(null);
+  const handleCancelPendingPayment = async (order: Order) => {
+    const orderId = order.id || (order as any).orderId || '';
+    const parentOrderNumber = String(
+      (order as any).parentOrderNumber || order.orderNumber || '',
+    );
+    if (!orderId || !parentOrderNumber || cancelingPaymentId) return;
+    setCancelingPaymentId(orderId);
+    try {
+      const res = await orderApi.cancelPendingPayment(orderId, parentOrderNumber);
+      if (res.success) {
+        await clearBankPaymentPending(orderId);
+        setPendingBankPaymentsTick((t) => t + 1);
+        showToast(res.message || 'Payment attempt cancelled', 'success');
+        fetchOrdersRef.current();
+      } else {
+        showToast(res.error || t('profile.unitSurvey.paymentConfirmFailed') || 'Failed to cancel', 'error');
+      }
+    } catch {
+      showToast(t('profile.unitSurvey.paymentConfirmFailed') || 'Failed to cancel', 'error');
+    } finally {
+      setCancelingPaymentId(null);
+    }
+  };
+
   const renderOrderProductRow = (
     _order: Order,
     item: OrderItem,
@@ -2113,10 +2140,27 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
                 const orderIdForPaying = order.id || (order as any).orderId || '';
                 const showPaying = isBankPaymentPendingSync(orderIdForPaying);
                 return showPaying ? (
-                  <View style={styles.payingBadge}>
-                    <Text style={styles.payingBadgeText}>
-                      {t('buyList.paying') || '결제중'}
-                    </Text>
+                  <View style={styles.payingRow}>
+                    <View style={styles.payingBadge}>
+                      <Text style={styles.payingBadgeText}>
+                        {t('buyList.paying') || '결제중'}
+                      </Text>
+                    </View>
+                    {/* 결제중 옆 취소 버튼 → cancel-pending-payment */}
+                    <TouchableOpacity
+                      style={styles.cancelPendingButton}
+                      activeOpacity={0.7}
+                      disabled={cancelingPaymentId === orderIdForPaying}
+                      onPress={() => void handleCancelPendingPayment(order)}
+                    >
+                      {cancelingPaymentId === orderIdForPaying ? (
+                        <ActivityIndicator size="small" color={COLORS.red} />
+                      ) : (
+                        <Text style={styles.cancelPendingButtonText}>
+                          {t('common.cancel') || '취소'}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -4712,6 +4756,27 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.sm,
     color: COLORS.text.secondary,
     fontWeight: '600',
+  },
+  payingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  cancelPendingButton: {
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.red,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 56,
+  },
+  cancelPendingButtonText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.red,
+    fontWeight: '700',
   },
   cancelOrderButton: {
     flex: 1,

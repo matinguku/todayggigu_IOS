@@ -1793,6 +1793,62 @@ export const orderApi = {
     }
   },
 
+  /**
+   * "결제중"(무통장 결제 신청) 주문의 결제 시도를 취소한다.
+   *   POST /orders/:id/cancel-pending-payment   body: { parentOrderNumber }
+   * 성공 시 data: { reset, tier, parentOrderNumber }.
+   */
+  cancelPendingPayment: async (
+    orderId: string,
+    parentOrderNumber: string,
+  ): Promise<ApiResponse<{ reset?: boolean; tier?: string; parentOrderNumber?: string }>> => {
+    try {
+      const token = await getStoredToken();
+      if (!token) {
+        return { success: false, error: 'No authentication token found. Please log in again.' };
+      }
+      const url = `${API_BASE_URL}/orders/${encodeURIComponent(orderId)}/cancel-pending-payment`;
+      const body = { parentOrderNumber };
+      const signatureHeaders = await buildSignatureHeaders('POST', url, body);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          ...signatureHeaders,
+        },
+        body: JSON.stringify(body),
+      });
+      const responseText = await response.text();
+      let responseData: any;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        return { success: false, error: 'Invalid response from server. Please try again.' };
+      }
+      if (!response.ok) {
+        return {
+          success: false,
+          error: responseData?.message || `Request failed with status ${response.status}`,
+        };
+      }
+      if (responseData.status !== 'success') {
+        return { success: false, error: responseData?.message || 'Failed to cancel pending payment' };
+      }
+      return {
+        success: true,
+        message: responseData.message || 'Payment attempt cancelled',
+        data: responseData.data,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'An unexpected error occurred. Please try again.',
+      };
+    }
+  },
+
   confirmReceived: async (orderId: string): Promise<ApiResponse<{ order?: any }>> => {
     try {
       const token = await getStoredToken();
