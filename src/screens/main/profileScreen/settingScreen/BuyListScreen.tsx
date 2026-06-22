@@ -858,7 +858,7 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
 
       for (const order of orderList) {
         for (const item of order.items) {
-          if (resolveOrderItemCompanyName(item as unknown as Record<string, unknown>, locale)) {
+          if (resolveOrderItemCompanyName(item as unknown as Record<string, unknown>, 'zh')) {
             continue;
           }
           const offerId = String(item.offerId ?? '').trim();
@@ -875,9 +875,10 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
       const fetched = await Promise.all(
         [...pending.entries()].map(async ([cacheKey, { offerId, source }]) => {
           try {
-            const res = await productsApi.getProductDetail(offerId, source, locale);
+            // 회사이름은 항상 중국어로 표시하므로 'zh' 로 조회/추출.
+            const res = await productsApi.getProductDetail(offerId, source, 'zh');
             const name = res.success
-              ? extractCompanyNameFromProductDetail(res.data, locale)
+              ? extractCompanyNameFromProductDetail(res.data, 'zh')
               : '';
             return { cacheKey, name };
           } catch {
@@ -902,7 +903,7 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
             const cacheKey = `${item.source || '1688'}:${item.offerId}`;
             const cached = storeNameCacheRef.current.get(cacheKey);
             if (!cached) return item;
-            if (resolveOrderItemCompanyName(item as unknown as Record<string, unknown>, locale)) {
+            if (resolveOrderItemCompanyName(item as unknown as Record<string, unknown>, 'zh')) {
               return item;
             }
             return { ...item, companyName: cached };
@@ -917,15 +918,15 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
     (value: unknown, item?: OrderItem): string => {
       const fromItem =
         item != null
-          ? resolveOrderItemCompanyName(item as unknown as Record<string, unknown>, locale)
+          ? resolveOrderItemCompanyName(item as unknown as Record<string, unknown>, 'zh')
           : '';
       return (
         fromItem ||
-        coerceDisplayText(value, locale, '') ||
+        coerceDisplayText(value, 'zh', '') ||
         unknownStoreLabel
       );
     },
-    [locale, unknownStoreLabel],
+    [unknownStoreLabel],
   );
 
   // Add to wishlist mutation
@@ -1301,7 +1302,7 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
             quantity,
             price: unitPrice,
             image: item.imageUrl || item.image || '',
-            companyName: resolveOrderItemCompanyName(item, locale),
+            companyName: resolveOrderItemCompanyName(item, 'zh'),
             companyNameMultiLang:
               item.companyNameMultiLang ??
               (typeof item.companyName === 'object' && item.companyName != null
@@ -1836,14 +1837,36 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
   };
 
   // Render store group header
-  const renderStoreHeader = (storeGroup: StoreGroup) => (
-    <View style={styles.storeHeader}>
-      <Text style={styles.storeName} numberOfLines={1}>
-        {resolveStoreName(storeGroup.companyName, storeGroup.items[0])}
-      </Text>
-      <Text style={styles.storeName}>{'>'}</Text>
-    </View>
-  );
+  const renderStoreHeader = (storeGroup: StoreGroup) => {
+    const headerItem = storeGroup.items[0];
+    const companyLabel = resolveStoreName(storeGroup.companyName, headerItem);
+    // 회사이름 클릭 → 해당 셀러의 상품 목록(SellerProfile)으로 이동.
+    // 1688 셀러상품 API 는 sellerOpenId 로 조회하므로 주문 아이템의 sellerOpenId 를 사용.
+    const sellerId = storeGroup.sellerOpenId || headerItem?.sellerOpenId || '';
+    const sellerSource =
+      headerItem?.source ||
+      (String(headerItem?.otherSite ?? '').includes('taobao') ? 'taobao' : '1688');
+    return (
+      <TouchableOpacity
+        style={styles.storeHeader}
+        activeOpacity={0.6}
+        disabled={!sellerId}
+        onPress={() =>
+          embedNavigate('SellerProfile', {
+            sellerId,
+            sellerName: companyLabel,
+            source: sellerSource,
+            country: locale,
+          })
+        }
+      >
+        <Text style={styles.storeName} numberOfLines={1}>
+          {companyLabel}
+        </Text>
+        <Text style={styles.storeName}>{'>'}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const copyOrderNumber = (orderNumber: string) => {
     Clipboard.setString(orderNumber);
