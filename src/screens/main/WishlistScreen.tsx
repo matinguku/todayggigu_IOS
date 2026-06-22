@@ -9,10 +9,10 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
-  SafeAreaView,
   ScrollView,
   Modal,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import TuneIcon from '../../assets/icons/TuneIcon';
@@ -60,6 +60,10 @@ type WishlistScreenProps = {
 
 const WishlistScreen: React.FC<WishlistScreenProps> = ({ embedded = false }) => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  // 헤더 위(상태바) 영역을 흰색 헤더가 직접 칠하고 간격도 최소화하기 위한 상단 패딩.
+  // SafeAreaView 의 top 인셋을 빼고(아래 edges) 헤더가 그 자리를 흰색으로 덮는다.
+  const headerTopStyle = { paddingTop: insets.top + SPACING.sm };
   const { user, isAuthenticated } = useAuth();
   
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
@@ -506,14 +510,16 @@ const WishlistScreen: React.FC<WishlistScreenProps> = ({ embedded = false }) => 
     embedded ? (
       <View style={[styles.container, styles.embeddedContainer]}>{children}</View>
     ) : (
-      <SafeAreaView style={styles.container}>{children}</SafeAreaView>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+        {children}
+      </SafeAreaView>
     );
 
   // If not authenticated, show login prompt
   if (!isAuthenticated) {
     return (
       <ScreenWrapper>
-        <View style={[styles.header, embedded && styles.embeddedHeader]}>
+        <View style={[styles.header, embedded ? styles.embeddedHeader : headerTopStyle]}>
           {!embedded && (
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
               <Icon name="arrow-back" size={24} color={COLORS.text.primary} />
@@ -634,7 +640,7 @@ const WishlistScreen: React.FC<WishlistScreenProps> = ({ embedded = false }) => 
   };
 
   const renderHeader = () => (
-    <View style={[styles.header, embedded && styles.embeddedHeader]}>
+    <View style={[styles.header, embedded ? styles.embeddedHeader : headerTopStyle]}>
       <View style={styles.headerLeft}>
         {!embedded && (
           <TouchableOpacity
@@ -1503,7 +1509,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    paddingTop: SPACING['3xl'],
+    // 상단 패딩은 headerTopStyle(= 안전영역 top + 약간) 으로 동적 적용 → 상태바 영역을 흰 헤더가 덮고 간격도 최소화.
     backgroundColor: COLORS.white,
     // borderBottomWidth: 1,
     // borderBottomColor: COLORS.gray[200],
