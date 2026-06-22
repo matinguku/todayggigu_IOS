@@ -1360,10 +1360,10 @@ const ProfileScreen: React.FC = () => {
           scrollEnabled={false}
           nestedScrollEnabled
           columnWrapperStyle={moreToLoveProductRowStyle}
-          removeClippedSubviews
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          initialNumToRender={10}
+          removeClippedSubviews={false}
+          maxToRenderPerBatch={productsToDisplay.length || 10}
+          windowSize={Math.max(5, productsToDisplay.length)}
+          initialNumToRender={productsToDisplay.length || 10}
           updateCellsBatchingPeriod={50}
           ListFooterComponent={() => {
             if (recommendationsLoading && productsToDisplay.length > 0) {
