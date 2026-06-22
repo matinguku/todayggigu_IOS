@@ -364,6 +364,8 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
   });
   const [profileAddresses, setProfileAddresses] = useState<ProfileAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  // 발주모달 내 배송주소 선택 오버레이 표시 여부 (모달 위 모달이 안 떠서 오버레이로 구현).
+  const [showAddressSelect, setShowAddressSelect] = useState(false);
   const [depositBalance, setDepositBalance] = useState(0);
   const [profileLoading, setProfileLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -2477,10 +2479,10 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
                   ) : (
                     <TouchableOpacity
                       style={styles.deliveryAddressFilledBox}
-                      onPress={handleUseNewAddress}
+                      onPress={() => setShowAddressSelect(true)}
                       activeOpacity={0.7}
                     >
-                      {/* 배송지 탭 → '새 주소 추가' 모달이 열려 배송지를 변경할 수 있다. */}
+                      {/* 배송지 탭 → 등록된 배송주소 중 하나를 선택하는 오버레이 표시 */}
                       <Text style={styles.deliveryAddressFilledText} numberOfLines={3}>
                         {deliveryAddressLabel || t('cartOrder.orderModal.selectPlaceholder')}
                       </Text>
@@ -2599,6 +2601,54 @@ const CartScreen: React.FC<CartScreenProps> = ({ embedded = false }) => {
               })()}
             </ScrollView>
           </View>
+          {/* 배송주소 선택 오버레이 — iOS 는 모달 위에 모달이 안 뜨므로 발주모달
+              안의 절대위치 오버레이로 구현. 등록된 주소를 라디오로 한 개만 선택.
+              주소가 하나뿐이면 그 주소가 selectedAddressId 로 이미 선택돼 보인다. */}
+          {showAddressSelect && (
+            <View style={styles.addrSelectOverlay}>
+              <TouchableOpacity
+                style={styles.addrSelectBackdrop}
+                activeOpacity={1}
+                onPress={() => setShowAddressSelect(false)}
+              />
+              <View style={styles.addrSelectCard}>
+                <View style={styles.addrSelectHeader}>
+                  <Text style={styles.addrSelectTitle}>
+                    {t('cartOrder.orderModal.selectRecipient')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowAddressSelect(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Icon name="close" size={20} color={COLORS.text.primary} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.addrSelectList} showsVerticalScrollIndicator={false}>
+                  {addressesForCustoms.map((addr) => {
+                    const selected = addr._id === selectedAddressId;
+                    return (
+                      <TouchableOpacity
+                        key={addr._id}
+                        style={[styles.addrSelectRow, selected && styles.addrSelectRowSelected]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setSelectedAddressId(addr._id);
+                          setShowAddressSelect(false);
+                        }}
+                      >
+                        <View style={[styles.addrRadioOuter, selected && styles.addrRadioOuterOn]}>
+                          {selected && <View style={styles.addrRadioInner} />}
+                        </View>
+                        <Text style={styles.addrSelectRowText} numberOfLines={3}>
+                          {formatProfileAddressLabel(addr)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+          )}
         </View>
       </Modal>
 
@@ -4943,6 +4993,85 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     minHeight: 72,
     justifyContent: 'center',
+  },
+  // ── 배송주소 선택 오버레이 (발주모달 내부 절대위치) ─────────────
+  addrSelectOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  addrSelectBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  addrSelectCard: {
+    width: '86%',
+    maxHeight: '70%',
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+  },
+  addrSelectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  addrSelectTitle: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  addrSelectList: {
+    flexGrow: 0,
+  },
+  addrSelectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[100],
+  },
+  addrSelectRowSelected: {
+    backgroundColor: COLORS.primary + '10',
+    borderRadius: 8,
+  },
+  addrSelectRowText: {
+    flex: 1,
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.text.primary,
+    lineHeight: Math.round(FONTS.sizes.sm * 1.4),
+  },
+  addrRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.gray[400],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addrRadioOuterOn: {
+    borderColor: COLORS.primary,
+  },
+  addrRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
   },
   deliveryAddressFilledText: {
     fontSize: FONTS.sizes.sm,
