@@ -643,13 +643,17 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
             <TouchableOpacity
               style={styles.editAddressLink}
               onPress={() => {
+                // 주문 주소(any)는 백엔드에 따라 우편번호 키가 zipCode/zipcode/postalCode 로
+                // 제각각이다. zipCode 만 읽으면 다른 변형일 때 zonecode 가 빈 채 모달이 열리고,
+                // 그대로 저장하면 백엔드가 새 주소의 배송비를 계산하지 못해
+                // "배송비용을 불러올 수 없다" 에러를 돌려준다. 모든 변형을 폴백으로 읽는다.
                 setEditAddress({
-                  zonecode: address?.zipCode || '',
-                  roadAddress: address?.detailedAddress || '',
-                  detailAddress: address?.detailedAddress || '',
-                  recipient: address?.recipient || '',
-                  contact: address?.contact || '',
-                  customsCode: address?.personalCustomsCode || '',
+                  zonecode: address?.zipCode || address?.zipcode || address?.postalCode || '',
+                  roadAddress: address?.detailedAddress || address?.street || address?.address || '',
+                  detailAddress: address?.detailedAddress || address?.street || address?.address || '',
+                  recipient: address?.recipient || address?.name || '',
+                  contact: address?.contact || address?.phone || '',
+                  customsCode: address?.personalCustomsCode || address?.customsCode || '',
                 });
                 setAddressModalVisible(true);
               }}
@@ -921,13 +925,24 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
               <TouchableOpacity
                 style={styles.addressModalSaveButton}
                 onPress={async () => {
+                  // 빈 필드(특히 우편번호)로 저장하면 백엔드가 새 주소의 배송비를
+                  // 계산하지 못해 "배송비용을 불러올 수 없다" 류 에러를 돌려준다.
+                  // 저장 전에 클라이언트에서 검증해 명확한 안내를 준다.
+                  const recipientV = editAddress.recipient.trim();
+                  const contactV = editAddress.contact.trim();
+                  const detailV = (editAddress.detailAddress || editAddress.roadAddress).trim();
+                  const zipV = editAddress.zonecode.trim();
+                  if (!recipientV) { showToast(t('profile.addressModal.recipientRequired'), 'error'); return; }
+                  if (!contactV) { showToast(t('profile.addressModal.contactRequired'), 'error'); return; }
+                  if (!detailV) { showToast(t('profile.addressModal.detailRequired'), 'error'); return; }
+                  if (!zipV) { showToast(t('profile.addressModal.postalRequired'), 'error'); return; }
                   setIsSavingAddress(true);
                   try {
                     const res = await orderApi.updateShippingAddress(order.id, {
-                      recipient: editAddress.recipient,
-                      contact: editAddress.contact,
-                      detailedAddress: editAddress.detailAddress || editAddress.roadAddress,
-                      zipCode: editAddress.zonecode,
+                      recipient: recipientV,
+                      contact: contactV,
+                      detailedAddress: detailV,
+                      zipCode: zipV,
                       personalCustomsCode: editAddress.customsCode,
                       country: 'South Korea',
                     });
