@@ -227,10 +227,12 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
       // 방문 기록의 visitedAt 이 카드의 lastMessageAt 이상이면 confirmed.
       // 사용자가 본 뒤 admin 이 새 메시지를 보내면 lastMessageAt > visitedAt
       // 이 되어 다시 unconfirmed 로 카운트된다.
+      // 카드 라벨과 동일한 기준(visited 로직) 으로 카운트한다. confirmed 가
+      // 아니면 미확인으로 카운트. item.status 는 탭 시 'confirmed' 로 바뀌어
+      // 새 메시지를 놓치므로 신뢰하지 않는다. (방문 캐시 덕에 과거 확인한 건은
+      // visitedAt >= lastMessageAt 으로 confirmed 처리돼 카운트되지 않는다.)
       if (isInquiryConfirmedSync(item.inquiryId, item.lastMessageAt)) return acc;
-      const s = String(item.status || '').toLowerCase();
-      const isUnconfirmed = s === 'open' || s === 'pending' || s === 'unconfirmed';
-      return isUnconfirmed ? acc + 1 : acc;
+      return acc + 1;
     }, 0);
     setUnreadCountOverride(orderUnconfirmed);
   }, [orderInquiries, setUnreadCountOverride]);
@@ -608,7 +610,11 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
     // 사용자가 본 뒤 admin 이 새 메시지를 보내면 lastMessageAt 이 visitedAt
     // 보다 나중이 되어 다시 미확인으로 돌아간다 (backend status 와 무관).
     const confirmed = isInquiryConfirmedSync(item.inquiryId, item.lastMessageAt);
-    const displayStatus = confirmed ? 'confirmed' : item.status;
+    // visited 로직이 라벨의 진실의 원천. confirmed 가 아니면(=새 메시지 도착 또는
+    // 미방문) 무조건 "미확인". item.status 로 폴백하면, 사용자가 한 번 탭해
+    // item.status 가 'confirmed' 로 바뀐 뒤 admin 이 새 메시지를 보냈을 때
+    // lastMessageAt 만 갱신되고 status 는 그대로라 "확인완료" 로 잘못 남는다.
+    const displayStatus = confirmed ? 'confirmed' : 'unconfirmed';
     // ✓ = 전송 / ✓✓ = 관리자 읽음. readReceiptVersion·readCacheReady 변화 시 재계산.
     const readByAdmin = isReadByAdminSync(item.inquiryId, item.lastMessageAt);
 
@@ -690,7 +696,7 @@ const MessageScreen: React.FC<MessageScreenProps> = ({
             activeOpacity={0.7}
             onPress={(e) => {
               e.stopPropagation?.();
-              const isConfirmed = displayStatus === 'confirmed' || displayStatus === 'closed';
+              const isConfirmed = displayStatus === 'confirmed';
               if (isConfirmed) {
                 // 확인완료 → 미확인
                 clearInquiryVisitedSync(item.inquiryId);
