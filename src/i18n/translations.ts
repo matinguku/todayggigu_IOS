@@ -2003,6 +2003,20 @@ For return assistance, please contact our customer service team with your order 
     payment: {
       // Header
       orderConfirmation: 'Order Confirmation',
+      bankTransfer: {
+        title: 'Bank transfer instructions',
+        subtitle: 'Please transfer the amount below to the account shown. Your order will be confirmed after the deposit is verified.',
+        orderNumber: 'Order number',
+        depositorName: 'Depositor name (for transfer)',
+        depositorNameHint: 'Enter this exact name as the depositor when transferring. The name and amount must match for automatic confirmation.',
+        bankName: 'Bank',
+        accountNumber: 'Account number',
+        amount: 'Amount (₩)',
+        dueDate: 'Due date',
+        copy: 'Copy',
+        copied: 'Copied',
+        viewOrder: 'View order',
+      },
       // BillGate WebView header
       cardPayment: 'Credit Card Payment',
       // Hardcoded bank name displayed in payment info
@@ -4604,6 +4618,20 @@ Supports credit and check cards from various banks for recharging and payments.`
     payment: {
       // Header
       orderConfirmation: '订单确认',
+      bankTransfer: {
+        title: '银行转账说明',
+        subtitle: '请向以下账户汇入所示金额。入账确认后订单将自动确认。',
+        orderNumber: '订单号',
+        depositorName: '汇款人姓名（汇款时填写）',
+        depositorNameHint: '汇款时请按上述姓名填写汇款人。汇款人姓名与金额一致才能自动确认。',
+        bankName: '收款银行',
+        accountNumber: '收款账号',
+        amount: '汇款金额 (₩)',
+        dueDate: '汇款期限',
+        copy: '复制',
+        copied: '已复制',
+        viewOrder: '查看订单',
+      },
       // BillGate WebView header
       cardPayment: '信用卡支付',
       // 银行名称
@@ -7610,6 +7638,20 @@ Supports credit and check cards from various banks for recharging and payments.`
     payment: {
       // 헤더
       orderConfirmation: '주문 확인',
+      bankTransfer: {
+        title: '무통장입금 안내',
+        subtitle: '아래 계좌로 안내 금액을 입금해 주세요. 입금 확인 후 주문이 자동으로 확정됩니다.',
+        orderNumber: '주문번호',
+        depositorName: '입금자명 (입금 시 입력)',
+        depositorNameHint: '입금 시 위 이름을 입금자명에 그대로 입력해 주세요. 입금자명과 금액이 일치해야 자동 확인됩니다.',
+        bankName: '입금은행',
+        accountNumber: '입금계좌',
+        amount: '입금금액 (₩)',
+        dueDate: '입금 기한',
+        copy: '복사',
+        copied: '복사됨',
+        viewOrder: '주문 보기',
+      },
       // BillGate WebView 헤더
       cardPayment: '신용카드 결제',
       // 은행명

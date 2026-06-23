@@ -36,3 +36,5 @@ export { default as VariationSelectionModal } from './VariationSelectionModal';
 export { default as TabletContent } from './TabletContent';
 export { default as SortDropdown } from './SortDropdown';
 export { default as PriceFilterModal } from './PriceFilterModal';
+export { default as BankPaymentInfoModal } from './BankPaymentInfoModal';
+export type { BankPaymentInfo } from './BankPaymentInfoModal';

@@ -2291,6 +2291,69 @@ export const orderApi = {
   },
 
   /**
+   * 무통장(PayAction) 입금 신청 — POST /orders/checkout
+   *   body: { orderId, paymentMethod: 'payaction', amount, depositorName }
+   * 성공 시 data.bankPaymentInfo(은행/계좌/금액/기한/입금자명) 로 안내 모달을 띄운다.
+   */
+  submitBankTransfer: async (
+    orderId: string,
+    amount: number,
+    depositorName: string,
+    lang?: string,
+  ): Promise<
+    ApiResponse<{
+      order?: any;
+      amountToPay?: number;
+      paymentMethod?: string;
+      bankPaymentInfo?: {
+        bankName?: string;
+        bankAccount?: string;
+        amountKRW?: number;
+        dueDate?: string;
+        dueTime?: string;
+        reference?: string;
+        depositorName?: string;
+      };
+    }>
+  > => {
+    try {
+      const body: Record<string, unknown> = {
+        orderId,
+        paymentMethod: 'payaction',
+        amount: Math.round(amount),
+        depositorName: depositorName.trim(),
+      };
+      const langParam = mapLocaleToOrdersLang(lang);
+      const url = `${API_BASE_URL}/orders/checkout?lang=${encodeURIComponent(langParam)}`;
+      const response = await axiosWithAuth('POST', url, { data: body });
+      const responseData = response.data;
+      if (!responseData) {
+        return { success: false, error: 'Invalid response from server. Please try again.' };
+      }
+      if (responseData.status && responseData.status !== 'success') {
+        return {
+          success: false,
+          error: responseData?.message || responseData?.error || 'Failed to process payment',
+        };
+      }
+      return {
+        success: true,
+        message: responseData.message,
+        data: responseData.data,
+      };
+    } catch (error: any) {
+      const serverMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message;
+      return {
+        success: false,
+        error: serverMessage || 'An unexpected error occurred. Please try again.',
+      };
+    }
+  },
+
+  /**
    * 신용카드 결제 prepare — BillGate 결제창 진입을 위한 paymentData 를 받는다.
    *
    * 백엔드 endpoint: POST /v1/payments/billgate/prepare

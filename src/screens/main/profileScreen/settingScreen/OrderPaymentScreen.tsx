@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import ProductImage from '../../../../components/ProductImage';
+import { BankPaymentInfoModal, type BankPaymentInfo } from '../../../../components';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Icon from '../../../../components/Icon';
@@ -141,6 +142,10 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
   const [memberName, setMemberName] = useState('');
   const [depositAmount, setDepositAmount] = useState('0');
   const [submitting, setSubmitting] = useState(false);
+  // 무통장(PayAction) 입금 안내 모달
+  const [bankModalVisible, setBankModalVisible] = useState(false);
+  const [bankInfo, setBankInfo] = useState<BankPaymentInfo | null>(null);
+  const [bankOrderNumber, setBankOrderNumber] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
     if (!orderId) {
@@ -245,6 +250,22 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
     setDepositAmount(String(Math.min(depositBalance, Math.ceil(estimatedTotal))));
   };
 
+  // 결제 후 발주관리(구매대행) 목록으로 이동.
+  const goToBuyList = useCallback(() => {
+    if (embedded && profileEmbed?.isEmbedActive) {
+      profileEmbed.replaceRoute({
+        type: 'buyList',
+        domain: 'purchase_agency',
+        initialTab: 'purchase_agency',
+      });
+    } else {
+      (navigation as any).navigate('BuyList', {
+        domain: 'purchase_agency',
+        initialTab: 'purchase_agency',
+      });
+    }
+  }, [embedded, profileEmbed, navigation]);
+
   const handleSubmit = async () => {
     if (!orderId || !order || submitting) return;
 
@@ -295,6 +316,52 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
         return;
       }
 
+      // ─── 무통장(PayAction) 입금 흐름 ───
+      // POST /orders/checkout { paymentMethod: 'payaction', amount, depositorName }
+      // 성공 시 응답의 bankPaymentInfo 로 "무통장입금 안내" 모달을 띄운다.
+      if (selectedTab === 'bank') {
+        const res = await orderApi.submitBankTransfer(
+          orderId,
+          payAmount,
+          memberName.trim(),
+          locale,
+        );
+        if (!res.success) {
+          showToast(res.error || t('profile.unitSurvey.paymentConfirmFailed'), 'error');
+          setSubmitting(false);
+          return;
+        }
+        // admin 입금 확인 전까지 카드에 "결제중" 표시.
+        try {
+          await markBankPaymentPending(orderId);
+        } catch (markErr) {
+          console.warn('[OrderPaymentScreen] markBankPaymentPending failed:', markErr);
+        }
+        const info = res.data?.bankPaymentInfo;
+        if (info && (info.bankName || info.bankAccount)) {
+          setBankInfo({
+            bankName: info.bankName || '',
+            bankAccount: info.bankAccount || '',
+            amountKRW: info.amountKRW ?? payAmount,
+            dueDate: info.dueDate,
+            dueTime: info.dueTime,
+            reference: info.reference,
+            depositorName: info.depositorName,
+          });
+          setBankOrderNumber(
+            ((res.data?.order as any)?.orderNumber as string) ?? order?.orderNumber ?? null,
+          );
+          setBankModalVisible(true);
+          setSubmitting(false);
+          return;
+        }
+        // bankPaymentInfo 가 없으면 기존처럼 토스트 + 목록 이동으로 폴백.
+        showToast(res.message || t('profile.unitSurvey.paymentConfirmSuccess'), 'success');
+        goToBuyList();
+        return;
+      }
+
+      // ─── 예치금 결제 흐름 (deposit) ───
       // 추가비용결제 흐름에서도 주문의 현재 shippingAddress 를 backend 에 함께
       // 전송 — backend 가 주소를 갱신/보존하도록 보장.
       const orderShippingAddress = (order as any)?.shippingAddress ?? undefined;
@@ -302,7 +369,6 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
       const res = await orderApi.payOrder(orderId, {
         paymentMethod: selectedTab,
         amountKRW: payAmount,
-        memberName: selectedTab === 'bank' ? memberName.trim() : undefined,
         lang: locale,
         ...(orderShippingAddress && Object.keys(orderShippingAddress).length > 0
           ? { shippingAddress: orderShippingAddress }
@@ -311,31 +377,7 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
 
       if (res.success) {
         showToast(t('profile.unitSurvey.paymentConfirmSuccess'), 'success');
-        // 무통장 결제는 admin 의 입금 확인까지 시간이 걸리므로 카드에 "결제중"
-        // 라벨을 표시하기 위해 클라이언트 측에 pending mark 를 저장한다.
-        // backend 가 paid 로 확정하면 resolvePurchaseAgencyProgressStatus 가
-        // P_PAY_COMPLETE 로 우선 매핑하므로 자연스럽게 결제완료로 전환된다.
-        if (selectedTab === 'bank') {
-          try {
-            await markBankPaymentPending(orderId);
-          } catch (markErr) {
-            console.warn('[OrderPaymentScreen] markBankPaymentPending failed:', markErr);
-          }
-        }
-        // 결제 완료 후 BuyList 가 발주관리·구매대행 목록을 새로고침하며
-        // P_PAY_COMPLETE → 결제완료 카드로 표시한다 (useFocusEffect).
-        if (embedded && profileEmbed?.isEmbedActive) {
-          profileEmbed.replaceRoute({
-            type: 'buyList',
-            domain: 'purchase_agency',
-            initialTab: 'purchase_agency',
-          });
-        } else {
-          (navigation as any).navigate('BuyList', {
-            domain: 'purchase_agency',
-            initialTab: 'purchase_agency',
-          });
-        }
+        goToBuyList();
       } else {
         showToast(res.error || t('profile.unitSurvey.paymentConfirmFailed'), 'error');
       }
@@ -393,7 +435,7 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
   }
 
   return renderScreenShell(
-
+    <>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={{ paddingBottom: SPACING.xl + insets.bottom }}
@@ -578,6 +620,20 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
           </View>
         </View>
       </ScrollView>
+
+      {/* 무통장입금 안내 모달 — 무통장 제출 성공 시 표시 */}
+      <BankPaymentInfoModal
+        visible={bankModalVisible}
+        bankPaymentInfo={bankInfo}
+        orderNumber={bankOrderNumber}
+        orderId={orderId}
+        onClose={() => setBankModalVisible(false)}
+        onConfirmComplete={async () => {
+          setBankModalVisible(false);
+          goToBuyList();
+        }}
+      />
+    </>
   );
 };
 
