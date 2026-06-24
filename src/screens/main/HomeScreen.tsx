@@ -1982,9 +1982,6 @@ const HomeScreen: React.FC = () => {
 
   const renderHeader = () => {
     const wordmark = String(t('home.guestLogoWordmark'));
-    const taglineFull = String(t('home.guestPartnerTagline'));
-    const tag1688 = '1688';
-    const tag1688Idx = taglineFull.indexOf(tag1688);
     const useTodayGgiguMark = wordmark.toLowerCase() === 'todayggigu';
 
     const renderTodayGgiguMark = () => {
@@ -2002,19 +1999,6 @@ const HomeScreen: React.FC = () => {
         />
       );
     };
-
-    const renderTagline = () =>
-      tag1688Idx >= 0 ? (
-        <Text style={styles.homeGuestBrandSubDark} numberOfLines={2}>
-          {tag1688Idx > 0 ? taglineFull.slice(0, tag1688Idx) : ''}
-          <Text style={styles.homeGuestBrand1688}>{taglineFull.slice(tag1688Idx, tag1688Idx + tag1688.length)}</Text>
-          {taglineFull.slice(tag1688Idx + tag1688.length)}
-        </Text>
-      ) : (
-        <Text style={styles.homeGuestBrandSubDark} numberOfLines={2}>
-          {taglineFull}
-        </Text>
-      );
 
     return (
       <View style={[styles.header, styles.headerGuestLight, { paddingHorizontal: homeGutter }]}>
@@ -2038,7 +2022,6 @@ const HomeScreen: React.FC = () => {
             </TouchableOpacity>
             <View style={styles.homeGuestBrandCenter}>
               {renderTodayGgiguMark()}
-              {renderTagline()}
             </View>
             <View style={styles.homeGuestHeaderRight}>
               <TouchableOpacity

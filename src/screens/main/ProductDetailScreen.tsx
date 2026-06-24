@@ -645,35 +645,12 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
   }, [productPlatformKey, t]);
 
   const handleOpenPlatformCategory = useCallback(() => {
-    // 1688 플랫폼인 경우 — 외부 1688 상품 상세 페이지를 브라우저로 연다.
-    // offerId 우선순위: product.offerId → product.id → product.externalId →
-    // route 의 productId → route 의 offerId.
-    // 숫자만 추출하여 1688 의 offer URL 패턴에 정확히 맞춘다 (offerId 는
-    // 항상 숫자 ID).
-    if (productPlatformKey === '1688') {
-      const rawId =
-        (product as any)?.offerId ??
-        (product as any)?.id ??
-        (product as any)?.externalId ??
-        productId ??
-        offerId ??
-        '';
-      const numericId = String(rawId).replace(/[^0-9]/g, '');
-      if (numericId) {
-        const url = `https://detail.1688.com/offer/${numericId}.html?offerId=${numericId}`;
-        Linking.openURL(url).catch(() => {
-          // 브라우저 오픈 실패 시 fallback — 기존 카테고리 이동으로 대체.
-          const companyTab = productPlatformToCompanyTab(productPlatformKey);
-          setSelectedPlatform(productPlatformKey);
-          navigation.navigate('Category', { initialCompany: companyTab });
-        });
-        return;
-      }
-    }
+    // 외부 1688 상세 페이지로 내보내지 않고, 항상 앱 내 카테고리로 이동한다.
+    // (흐름은 그대로 유지 — 앱 밖으로 나가는 동작만 제거)
     const companyTab = productPlatformToCompanyTab(productPlatformKey);
     setSelectedPlatform(productPlatformKey);
     navigation.navigate('Category', { initialCompany: companyTab });
-  }, [navigation, offerId, product, productId, productPlatformKey, setSelectedPlatform]);
+  }, [navigation, productPlatformKey, setSelectedPlatform]);
 
   // Live stats data - defined before useEffect that uses it
   const liveStats = [
