@@ -58,6 +58,22 @@ const formatOrderKRW = (amount: number): string => {
   return formatPriceCNY(amount);
 };
 
+/** 2차(출고결제) 비용은 secondTierCost 의 KRW 값(실제 원화)이라 ₩ 로 표기. */
+const formatWon = (amount: number): string => {
+  const n = Math.round(Number.isFinite(amount) ? amount : 0);
+  return `₩${n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+};
+
+/** secondTierCost 의 KRW 항목 → 요약에 보여줄 라벨 (실제 값이 있는 것만 표시). */
+const SECOND_TIER_FIELDS: Array<{ key: string; labelKey: string }> = [
+  { key: 'baseInternationalShippingKRW', labelKey: 'payment.secondTier.baseShipping' },
+  { key: 'additionalInternationalShippingKRW', labelKey: 'payment.secondTier.additionalShipping' },
+  { key: 'ruralShippingCostKRW', labelKey: 'payment.secondTier.ruralShipping' },
+  { key: 'codFee', labelKey: 'payment.secondTier.codFee' },
+  { key: 'cashOnDeliveryKRW', labelKey: 'payment.secondTier.cashOnDelivery' },
+  { key: 'additionalServicesTotalKRW', labelKey: 'payment.secondTier.additionalServices' },
+];
+
 const resolveProductTotalKRW = (order: Order): number => {
   const tier = order.firstTierCost;
   const fromTier = coerceAmount(tier?.productTotalKRW) || coerceAmount(tier?.realProductTotalKRW);
@@ -208,15 +224,37 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
   );
   const shippingKRW = useMemo(() => (order ? resolveShippingKRW(order) : 0), [order]);
 
+  // 2차(출고결제대기) 결제 — orderPayments 의 pending 'second' 결제가 있으면
+  // secondTierCost(실제 원화)로 금액·요약을 구성한다. 상품 가격이 아니라
+  // 제출 시 계산되는 2차(국제배송 등) 비용이며, 실제 값이 있는 항목만 보여준다.
+  const secondTier = useMemo(() => {
+    if (!order) return null;
+    const payments = (order.orderPayments ?? []) as Array<{
+      tier?: string;
+      amountKRW?: number;
+      status?: string;
+    }>;
+    const pendingSecond = payments.find((p) => p.tier === 'second' && p.status === 'pending');
+    if (!pendingSecond) return null;
+    const cost = (order as any).secondTierCost as Record<string, unknown> | undefined;
+    const totalKRW = coerceAmount(pendingSecond.amountKRW) || coerceAmount(cost?.totalKRW);
+    const rows = cost
+      ? SECOND_TIER_FIELDS.map((f) => ({ label: t(f.labelKey), value: coerceAmount(cost[f.key]) }))
+          .filter((r) => r.value > 0)
+      : [];
+    return { totalKRW, rows };
+  }, [order, t]);
+
   const estimatedTotal = useMemo(() => {
     if (!order) return 0;
+    if (secondTier?.totalKRW) return secondTier.totalKRW;
     if (pendingPayment?.amountKRW) return pendingPayment.amountKRW;
     const tierTotal = coerceAmount(order.firstTierCost?.totalKRW);
     if (tierTotal > 0) return tierTotal;
     const resolved = resolveOrderTotalKRW(order);
     if (resolved > 0) return resolved;
     return productTotalKRW + shippingKRW;
-  }, [order, pendingPayment, productTotalKRW, shippingKRW]);
+  }, [order, secondTier, pendingPayment, productTotalKRW, shippingKRW]);
 
   const itemCount = order?.items?.length ?? 0;
   const firstItemImage = order?.items?.[0]?.imageUrl;
@@ -572,25 +610,44 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
             <ProductImage uri={firstItemImage} style={styles.summaryThumb} resizeMode="cover" />
           ) : null}
 
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{t('profile.productTotal')}</Text>
-            <Text style={styles.summaryValue}>{formatOrderKRW(productTotalKRW)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{t('payment.shipping')}</Text>
-            <Text style={styles.summaryValue}>{formatOrderKRW(shippingKRW)}</Text>
-          </View>
-
-          <View style={styles.summaryDivider} />
-
-          <View style={styles.summaryRow}>
-            <Text style={styles.estimatedLabel}>{t('payment.estimatedTotal')}</Text>
-            <Text style={styles.estimatedValue}>{formatOrderKRW(estimatedTotal)}</Text>
-          </View>
+          {secondTier ? (
+            // 2차(출고결제) — 이미지 바로 밑에 secondTierCost 의 실제 값 있는 항목만(₩).
+            <>
+              {secondTier.rows.map((r, i) => (
+                <View key={`st-${i}`} style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{r.label}</Text>
+                  <Text style={styles.summaryValue}>{formatWon(r.value)}</Text>
+                </View>
+              ))}
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryRow}>
+                <Text style={styles.estimatedLabel}>{t('payment.estimatedTotal')}</Text>
+                <Text style={styles.estimatedValue}>{formatWon(secondTier.totalKRW)}</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('profile.productTotal')}</Text>
+                <Text style={styles.summaryValue}>{formatOrderKRW(productTotalKRW)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('payment.shipping')}</Text>
+                <Text style={styles.summaryValue}>{formatOrderKRW(shippingKRW)}</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryRow}>
+                <Text style={styles.estimatedLabel}>{t('payment.estimatedTotal')}</Text>
+                <Text style={styles.estimatedValue}>{formatOrderKRW(estimatedTotal)}</Text>
+              </View>
+            </>
+          )}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{paymentMethodLabel}</Text>
             <Text style={styles.summaryValue}>
-              {formatOrderKRW(selectedTab === 'deposit' ? parsedDepositAmount : bankPayAmount)}
+              {(secondTier ? formatWon : formatOrderKRW)(
+                selectedTab === 'deposit' ? parsedDepositAmount : bankPayAmount,
+              )}
             </Text>
           </View>
 

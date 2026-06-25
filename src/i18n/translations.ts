@@ -2003,6 +2003,14 @@ For return assistance, please contact our customer service team with your order 
     payment: {
       // Header
       orderConfirmation: 'Order Confirmation',
+      secondTier: {
+        baseShipping: 'International shipping',
+        additionalShipping: 'Additional intl shipping',
+        ruralShipping: 'Remote area surcharge',
+        codFee: 'COD fee',
+        cashOnDelivery: 'Cash on delivery',
+        additionalServices: 'Add-on services',
+      },
       bankTransfer: {
         title: 'Bank transfer instructions',
         subtitle: 'Please transfer the amount below to the account shown. Your order will be confirmed after the deposit is verified.',
@@ -4619,6 +4627,14 @@ Supports credit and check cards from various banks for recharging and payments.`
     payment: {
       // Header
       orderConfirmation: '订单确认',
+      secondTier: {
+        baseShipping: '国际运费',
+        additionalShipping: '额外国际运费',
+        ruralShipping: '偏远地区附加费',
+        codFee: '货到付款手续费',
+        cashOnDelivery: '货到付款金额',
+        additionalServices: '附加服务',
+      },
       bankTransfer: {
         title: '银行转账说明',
         subtitle: '请向以下账户汇入所示金额。入账确认后订单将自动确认。',
@@ -7640,6 +7656,14 @@ Supports credit and check cards from various banks for recharging and payments.`
     payment: {
       // 헤더
       orderConfirmation: '주문 확인',
+      secondTier: {
+        baseShipping: '국제배송비',
+        additionalShipping: '추가 국제배송비',
+        ruralShipping: '도서산간 추가배송비',
+        codFee: '착불 수수료',
+        cashOnDelivery: '착불 금액',
+        additionalServices: '부가서비스',
+      },
       bankTransfer: {
         title: '무통장입금 안내',
         subtitle: '아래 계좌로 안내 금액을 입금해 주세요. 입금 확인 후 주문이 자동으로 확정됩니다.',
