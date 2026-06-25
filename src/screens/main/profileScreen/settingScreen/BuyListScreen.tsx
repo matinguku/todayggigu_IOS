@@ -2161,8 +2161,11 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
           )}
         </View>
 
-        {(canonicalStatus === 'P_PENDING' ||
-          SHIP_PAY_PENDING_STATUSES.has(canonicalStatus)) && (
+        {/* 묶음 카드 안(inBundle)에서는 자식별 결제버튼을 숨기고,
+            묶음 레벨에서 하나의 '결제하기' 버튼이 작용한다(부모주문 기준). */}
+        {!inBundle &&
+          (canonicalStatus === 'P_PENDING' ||
+            SHIP_PAY_PENDING_STATUSES.has(canonicalStatus)) && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -3281,6 +3284,31 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
                             {renderOrderWithStoreGrouping(o, true, true)}
                           </View>
                         ))}
+                        {(() => {
+                          // 묶음(부모주문) 결제 — 결제 대기(P_PENDING / 출고결제대기)
+                          // 자식이 있으면 하나의 '결제하기' 버튼만 둔다. 그 자식 orderId
+                          // 로 결제 화면(2차)에 진입하면 secondTierCost(부모 단위 비용)로
+                          // 결제가 진행된다.
+                          const payChild = unit.orders.find((o) => {
+                            const s = getCanonicalOrderProgressStatus(o);
+                            return s === 'P_PENDING' || SHIP_PAY_PENDING_STATUSES.has(s);
+                          });
+                          if (!payChild) return null;
+                          return (
+                            <View style={styles.bundlePayRow}>
+                              <TouchableOpacity
+                                style={styles.primaryButton}
+                                onPress={() =>
+                                  embedNavigate('OrderPayment', { orderId: payChild.id })
+                                }
+                              >
+                                <Text style={styles.primaryButtonText}>
+                                  {t('cart.pay') || 'Pay Now'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        })()}
                       </View>
                     ),
                   )}
@@ -5000,6 +5028,13 @@ const styles = StyleSheet.create({
   },
   // 묶음 안 자식 주문 사이 구분선.
   bundleChildDivider: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray[200],
+  },
+  bundlePayRow: {
+    alignItems: 'flex-end',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderTopWidth: 1,
     borderTopColor: COLORS.gray[200],
   },
