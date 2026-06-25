@@ -147,6 +147,8 @@ interface Order {
   id: string;
   orderId?: string; // Order ID from API
   orderNumber: string;
+  // 묶음(분할) 주문의 상위 주문번호. 값이 있으면 묶음주문으로 취급해 카드에 표시.
+  parentOrderNumber?: string | null;
   date: string;
   status: 'category' | 'unpaid' | 'progressing' | 'end' | 'pending_review' | 'error' | 'refunds';
   progressStatus: string;
@@ -1303,6 +1305,7 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
           id: order.id,
           orderId: order.id,
           orderNumber: order.orderNumber,
+          parentOrderNumber: order.parentOrderNumber ?? null,
           date: new Date(order.createdAt).toISOString().split('T')[0],
           ...statusMeta,
           items: (order.items || []).map((item: any) => {
@@ -2003,8 +2006,17 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
           <View style={styles.domainBadge}>
             <Text style={styles.domainBadgeText}>{domainBadge}</Text>
           </View>
-          <Text style={styles.orderHeaderNumber}>{order.orderNumber}</Text>
-          <TouchableOpacity onPress={() => copyOrderNumber(order.orderNumber)}>
+          {order.parentOrderNumber ? (
+            <View style={styles.bundleBadge}>
+              <Text style={styles.bundleBadgeText}>{t('buyList.bundleOrder') || '묶음'}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.orderHeaderNumber}>
+            {order.parentOrderNumber || order.orderNumber}
+          </Text>
+          <TouchableOpacity
+            onPress={() => copyOrderNumber(order.parentOrderNumber || order.orderNumber)}
+          >
             <Text style={styles.orderCopyText}>{t('buyList.copy')}</Text>
           </TouchableOpacity>
         </View>
@@ -4936,6 +4948,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
+  },
+  bundleBadge: {
+    backgroundColor: COLORS.red,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  bundleBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.white,
   },
   domainBadgeText: {
     fontSize: FONTS.sizes.xs,

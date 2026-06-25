@@ -2283,6 +2283,7 @@ For return assistance, please contact our customer service team with your order 
     },
     buyList: {
       purchaseManagement: 'Purchase Management',
+      bundleOrder: 'Bundle',
       localWarehouse: 'Local Warehouse',
       internationalShipping: 'International Shipping',
       error: 'Error',
@@ -4867,6 +4868,7 @@ Supports credit and check cards from various banks for recharging and payments.`
     },
     buyList: {
       purchaseManagement: '发注管理',
+      bundleOrder: '合并',
       localWarehouse: '本地入/出库',
       internationalShipping: '国际运输',
       error: '错误',
@@ -7887,6 +7889,7 @@ Supports credit and check cards from various banks for recharging and payments.`
     },
     buyList: {
       purchaseManagement: '발주관리',
+      bundleOrder: '묶음',
       localWarehouse: '현지입/출고',
       internationalShipping: '국제운송',
       error: '오류',
