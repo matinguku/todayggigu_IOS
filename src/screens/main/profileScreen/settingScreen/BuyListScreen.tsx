@@ -590,7 +590,8 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
     | 'error_management'
     | 'refund_management'
     | 'shipment_hold'
-    | 'problem_product';
+    | 'problem_product'
+    | 'shipping_delay';
   // 'all' = 도메인 필터 없음(전체주문건). 최상단 '전체' 칩이 사용.
   type BusinessDomain = BuyListBusinessDomain | 'all';
   const routeDomain = (embedded ? embeddedDomain : route.params?.domain) as
@@ -749,6 +750,10 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
     } else if (progressStatus === 'E_ERROR') {
       setActiveTab('error');
       setErrorSubFilter('error_management');
+    } else if (progressStatus === 'IO_DELAY') {
+      // 현지배송지연 — 다른 오류 항목과 동일하게 오류 탭의 서브필터로 표시.
+      setActiveTab('error');
+      setErrorSubFilter('shipping_delay');
     }
   }, [embedded, embeddedProgressStatus, route.params?.progressStatus]);
 
@@ -2259,6 +2264,11 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
               orderMatchesProgressStatus(order, 'P_MA_PROBLEM'),
             );
             break;
+          case 'shipping_delay':
+            result = result.filter((order) =>
+              orderMatchesProgressStatus(order, 'IO_DELAY'),
+            );
+            break;
           case 'error_management':
           default:
             result = result.filter((order) =>
@@ -2584,6 +2594,18 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
           setActiveTab('error');
           setErrorSubFilter('problem_product');
           setSelectedProgressStatus('P_MA_PROBLEM');
+          setExpandedStatusGroup(null);
+        },
+      },
+      {
+        key: 'shipping_delay',
+        labelKey: 'profile.toShippingDelay',
+        fallbackLabel: '현지배송지연',
+        onSelect: () => {
+          setActiveBusinessDomain('purchase_agency');
+          setActiveTab('error');
+          setErrorSubFilter('shipping_delay');
+          setSelectedProgressStatus('IO_DELAY');
           setExpandedStatusGroup(null);
         },
       },
