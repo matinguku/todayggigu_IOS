@@ -2141,14 +2141,14 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
         </View>
 
         {(canonicalStatus === 'P_PENDING' ||
-          canonicalStatus === 'IO_PAY_PENDING') && (
+          SHIP_PAY_PENDING_STATUSES.has(canonicalStatus)) && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.orderActionButtons}
             contentContainerStyle={styles.orderActionButtonsContent}
           >
-            {(canonicalStatus === 'P_PENDING' || canonicalStatus === 'IO_PAY_PENDING') &&
+            {(canonicalStatus === 'P_PENDING' || SHIP_PAY_PENDING_STATUSES.has(canonicalStatus)) &&
               (() => {
                 // pendingBankPaymentsTick 를 참조해 useFocusEffect 의 prewarm
                 // 직후 강제 리렌더가 정상 트리거되도록 한다 (의존성 캡처).
