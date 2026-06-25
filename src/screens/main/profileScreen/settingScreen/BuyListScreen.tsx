@@ -268,8 +268,18 @@ const getCanonicalOrderProgressStatus = (order: {
     orderNumber: order.orderNumber,
   });
 
-const orderMatchesProgressStatus = (order: Order, selected: string): boolean =>
-  getCanonicalOrderProgressStatus(order) === normalizeProgressStatus(selected);
+// 출고결제대기(2차)는 백엔드/도메인에 따라 IO_PAY_PENDING 또는
+// IO_SHIP_PAY_PENDING 으로 들어온다(orderCounts 도 둘을 합산). 그래서 필터에서도
+// 둘을 같은 상태로 취급해야 "카운트엔 N 인데 카드는 0 개"인 불일치가 안 생긴다.
+const SHIP_PAY_PENDING_STATUSES = new Set(['IO_PAY_PENDING', 'IO_SHIP_PAY_PENDING']);
+const orderMatchesProgressStatus = (order: Order, selected: string): boolean => {
+  const orderStatus = getCanonicalOrderProgressStatus(order);
+  const target = normalizeProgressStatus(selected);
+  if (SHIP_PAY_PENDING_STATUSES.has(target)) {
+    return SHIP_PAY_PENDING_STATUSES.has(orderStatus);
+  }
+  return orderStatus === target;
+};
 
 const orderBelongsToStatusGroup = (order: Order, groupKey: string): boolean => {
   const group = STATUS_GROUPS.find((g) => g.key === groupKey);
