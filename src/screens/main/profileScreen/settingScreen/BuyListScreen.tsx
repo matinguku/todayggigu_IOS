@@ -1986,7 +1986,11 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
   };
 
   // Render order with store grouping
-  const renderOrderWithStoreGrouping = (order: Order, showStatusInfo: boolean = false) => {
+  const renderOrderWithStoreGrouping = (
+    order: Order,
+    showStatusInfo: boolean = false,
+    inBundle: boolean = false,
+  ) => {
     const storeGroups = groupOrderItemsByStore(order.items);
     const statusLabel = t(order.statusTranslationKey) || order.progressStatus;
     const domainBadge = getBusinessDomainBadgeLabel(resolveOrderBusinessDomain(order), t);
@@ -1999,27 +2003,32 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
       hasMultipleItems && !isExpanded ? getCollapsedStoreGroups(storeGroups) : storeGroups;
 
     return (
-      <View key={`order-${order.id}`} style={styles.orderContainer}>
+      <View
+        key={`order-${order.id}`}
+        style={[styles.orderContainer, inBundle && styles.orderContainerInBundle]}
+      >
         {/* 우측 상단 메타 배지 — 도메인 한 글자 + 주문번호 + 복사 단추.
-            position: 'absolute' 로 카드의 오른쪽 위 모서리에 띄움. */}
-        <View style={styles.orderHeaderMetaCorner}>
-          <View style={styles.domainBadge}>
-            <Text style={styles.domainBadgeText}>{domainBadge}</Text>
-          </View>
-          {order.parentOrderNumber ? (
-            <View style={styles.bundleBadge}>
-              <Text style={styles.bundleBadgeText}>{t('buyList.bundleOrder') || '묶음'}</Text>
+            묶음 카드 안(inBundle)에서는 묶음 헤더가 번호를 한 번만 보여주므로 숨긴다. */}
+        {!inBundle && (
+          <View style={styles.orderHeaderMetaCorner}>
+            <View style={styles.domainBadge}>
+              <Text style={styles.domainBadgeText}>{domainBadge}</Text>
             </View>
-          ) : null}
-          <Text style={styles.orderHeaderNumber}>
-            {order.parentOrderNumber || order.orderNumber}
-          </Text>
-          <TouchableOpacity
-            onPress={() => copyOrderNumber(order.parentOrderNumber || order.orderNumber)}
-          >
-            <Text style={styles.orderCopyText}>{t('buyList.copy')}</Text>
-          </TouchableOpacity>
-        </View>
+            {order.parentOrderNumber ? (
+              <View style={styles.bundleBadge}>
+                <Text style={styles.bundleBadgeText}>{t('buyList.bundleOrder') || '묶음'}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.orderHeaderNumber}>
+              {order.parentOrderNumber || order.orderNumber}
+            </Text>
+            <TouchableOpacity
+              onPress={() => copyOrderNumber(order.parentOrderNumber || order.orderNumber)}
+            >
+              <Text style={styles.orderCopyText}>{t('buyList.copy')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.orderHeaderRow}>
           <View style={styles.orderHeaderMain}>
@@ -2357,6 +2366,31 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
       selectedEndDate,
     ],
   );
+
+  // parentOrderNumber 가 같은 주문들을 하나의 묶음 카드로 묶는다.
+  // 값이 없는 주문은 단일 카드. 첫 등장 위치에 묶음을 만들어 순서를 보존한다.
+  type OrderRenderUnit =
+    | { type: 'single'; order: Order }
+    | { type: 'bundle'; parent: string; orders: Order[] };
+  const orderRenderUnits = useMemo<OrderRenderUnit[]>(() => {
+    const units: OrderRenderUnit[] = [];
+    const idxByParent = new Map<string, number>();
+    for (const order of filteredOrders) {
+      const parent = (order.parentOrderNumber || '').trim();
+      if (parent) {
+        const i = idxByParent.get(parent);
+        if (i != null) {
+          (units[i] as { type: 'bundle'; orders: Order[] }).orders.push(order);
+        } else {
+          idxByParent.set(parent, units.length);
+          units.push({ type: 'bundle', parent, orders: [order] });
+        }
+      } else {
+        units.push({ type: 'single', order });
+      }
+    }
+    return units;
+  }, [filteredOrders]);
 
   const getToolbarSelectedOrders = () =>
     filteredOrders.filter((order) => selectedOrderIds.has(order.id));
@@ -3218,7 +3252,38 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
                 </View>
               ) : (
                 <View style={styles.ordersContainer}>
-                  {filteredOrders.map((order) => renderOrderWithStoreGrouping(order, true))}
+                  {orderRenderUnits.map((unit) =>
+                    unit.type === 'single' ? (
+                      renderOrderWithStoreGrouping(unit.order, true)
+                    ) : (
+                      <View key={`bundle-${unit.parent}`} style={styles.bundleGroupCard}>
+                        {/* 묶음 헤더 — 묶음 배지 + 하나의 묶음번호 + 건수 + 복사 */}
+                        <View style={styles.bundleGroupHeader}>
+                          <View style={styles.bundleBadge}>
+                            <Text style={styles.bundleBadgeText}>
+                              {t('buyList.bundleOrder') || '묶음'}
+                            </Text>
+                          </View>
+                          <Text style={styles.bundleGroupNumber} numberOfLines={1}>
+                            {unit.parent}
+                          </Text>
+                          <Text style={styles.bundleGroupCount}>{`· ${unit.orders.length}`}</Text>
+                          <View style={styles.bundleGroupSpacer} />
+                          <TouchableOpacity onPress={() => copyOrderNumber(unit.parent)}>
+                            <Text style={styles.orderCopyText}>{t('buyList.copy')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                        {unit.orders.map((o, i) => (
+                          <View
+                            key={o.id}
+                            style={i > 0 ? styles.bundleChildDivider : undefined}
+                          >
+                            {renderOrderWithStoreGrouping(o, true, true)}
+                          </View>
+                        ))}
+                      </View>
+                    ),
+                  )}
                 </View>
               )}
             </>
@@ -4894,6 +4959,49 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.gray[200],
     overflow: 'hidden',
+  },
+  // 묶음 카드 안의 자식 주문 — 자체 카드 테두리/여백 제거(묶음 카드가 한 장으로 보이게).
+  orderContainerInBundle: {
+    marginBottom: 0,
+    borderWidth: 0,
+    borderRadius: 0,
+  },
+  // parentOrderNumber 가 같은 주문들을 감싸는 하나의 큰 묶음 카드.
+  bundleGroupCard: {
+    backgroundColor: COLORS.white,
+    marginBottom: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.red,
+    overflow: 'hidden',
+  },
+  bundleGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.red + '0D',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[200],
+  },
+  bundleGroupNumber: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    flexShrink: 1,
+  },
+  bundleGroupCount: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.text.secondary,
+  },
+  bundleGroupSpacer: {
+    flex: 1,
+  },
+  // 묶음 안 자식 주문 사이 구분선.
+  bundleChildDivider: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray[200],
   },
   orderHeaderRow: {
     paddingHorizontal: SPACING.md,
