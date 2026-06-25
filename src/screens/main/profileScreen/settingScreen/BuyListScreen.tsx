@@ -1422,11 +1422,12 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
 
     return getOrdersRef.current({
       page: 1,
-      // 사용자가 기간을 좁게 잡았어도 client-side 필터에서 안전하게 거를 수
-      // 있도록 한 번에 충분히 넓게 받는다. backend 가 pagesize 최대 100 까지
-      // 만 허용하므로 (200 은 "Invalid value" 거절) — 100 이 상한.
-      // ProfileScreen / OEMSurveyScreen / UnitSurveyScreen 모두 100 사용.
-      pageSize: hasUserPeriod ? 100 : 50,
+      // 상태 필터가 client-side 라, 목록도 카운트 fetch(100)·ProfileScreen(100)
+      // 과 동일하게 100 건을 받아야 한다. 50 만 받으면 카운트엔 잡히지만 목록
+      // 51~100 위치에 있는 주문(예: 출고결제대기 IO_PAY_PENDING — 보통 오래된
+      // 주문이라 뒤쪽)이 빠져, "카운트>0 인데 카드 0개" 불일치가 생긴다.
+      // backend 는 pagesize 최대 100 만 허용(200 은 거절) — 100 이 상한.
+      pageSize: 100,
       lang: mapLocaleToOrdersLang(locale),
       search: searchQuery || undefined,
       ...(hasUserPeriod ? {} : { datePeriod: 'last_6_months' as const }),
