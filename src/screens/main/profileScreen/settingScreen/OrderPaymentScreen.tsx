@@ -27,6 +27,7 @@ import {
   OrderItem,
   orderApi,
   resolveOrderItemUnitPrice,
+  resolveOrderProgressStatus,
   resolveOrderTotalKRW,
   resolvePendingOrderPayment,
 } from '../../../../services/orderApi';
@@ -214,20 +215,36 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
   );
   const shippingKRW = useMemo(() => (order ? resolveShippingKRW(order) : 0), [order]);
 
-  // 2차(출고결제대기) 결제 — orderPayments 의 pending 'second' 결제가 있으면
-  // secondTierCost(실제 원화)로 금액·요약을 구성한다. 상품 가격이 아니라
-  // 제출 시 계산되는 2차(국제배송 등) 비용이며, 실제 값이 있는 항목만 보여준다.
+  // 2차(출고결제대기) 결제 판별 — 1차/2차 결제화면이 다르다. 2차는 주문의
+  // progressStatus 가 출고결제대기(IO_PAY_PENDING / IO_SHIP_PAY_PENDING)인지로
+  // 판단한다(BuyList 의 카드 식별과 동일). orderPayments 의 tier:'second' 형태는
+  // 백엔드 데이터에 따라 없을 수 있어 신뢰할 수 없으므로 보조 신호로만 쓴다.
+  // 금액·요약은 secondTierCost(실제 원화)로 구성한다 — 상품 가격이 아니라 제출 시
+  // 계산되는 2차(국제배송 등) 비용이다.
   const secondTier = useMemo(() => {
     if (!order) return null;
+    const canonical = resolveOrderProgressStatus({
+      progressStatus: order.progressStatus,
+      statusHistory: (order as any).statusHistory,
+      paymentStatus: (order as any).paymentStatus,
+      firstTierCost: order.firstTierCost,
+      orderMainInfo: (order as any).orderMainInfo,
+      orderType: (order as any).orderType,
+      orderNumber: order.orderNumber,
+    });
+    const isShipPayPending =
+      canonical === 'IO_PAY_PENDING' || canonical === 'IO_SHIP_PAY_PENDING';
     const payments = (order.orderPayments ?? []) as Array<{
       tier?: string;
       amountKRW?: number;
       status?: string;
     }>;
     const pendingSecond = payments.find((p) => p.tier === 'second' && p.status === 'pending');
-    if (!pendingSecond) return null;
+    // 출고결제대기 상태이거나, orderPayments 에 pending 'second' 가 있을 때 2차로 본다.
+    if (!isShipPayPending && !pendingSecond) return null;
     const cost = (order as any).secondTierCost as Record<string, unknown> | undefined;
-    const totalKRW = coerceAmount(pendingSecond.amountKRW) || coerceAmount(cost?.totalKRW);
+    const totalKRW =
+      coerceAmount(pendingSecond?.amountKRW) || coerceAmount(cost?.totalKRW);
     // 무게총금액 = 기본 국제배송비(무게 기준 baseInternationalShippingKRW).
     // 부가서비스 총액 = 그 외 전부(= 합계 − 무게총금액). 개별 부가비용 필드가 0 이어도
     // 합계에 녹아 있는 수수료 등을 포함해 보여주기 위해 차액으로 계산한다(이미지 기준).
