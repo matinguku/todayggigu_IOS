@@ -1219,26 +1219,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   const renderQuickAccessSection = () => {
-    const expressCount = orderCounts.shipped;
     const cards = [
-      expressCount > 0 && (
-        <TouchableOpacity
-          key="delivery"
-          style={styles.quickAccessCard}
-          onPress={() => navigation.navigate('MyDeliveries' as never)}
-        >
-          <View style={styles.quickAccessHeader}>
-            <Text style={styles.quickAccessTitle}>{t('profile.expressDelivery')}</Text>
-            <Text style={styles.quickAccessSubtitle}>{tWithParams('profile.itemsPendingShipment', { count: expressCount })}</Text>
-          </View>
-          <View style={styles.quickAccessImageContainer}>
-            <Image
-              source={{ uri: 'https://via.placeholder.com/120x120/D4B896/FFFFFF?text=Delivery' }}
-              style={styles.quickAccessImage}
-            />
-          </View>
-        </TouchableOpacity>
-      ),
       (
         <TouchableOpacity
           key="wishlist"
