@@ -3294,18 +3294,51 @@ const BuyListScreen: React.FC<BuyListScreenProps> = ({
                             return s === 'P_PENDING' || SHIP_PAY_PENDING_STATUSES.has(s);
                           });
                           if (!payChild) return null;
+                          // pendingBankPaymentsTick 참조로 결제중 마크 변경 시 리렌더 보장.
+                          void pendingBankPaymentsTick;
+                          const payChildId =
+                            payChild.id || (payChild as any).orderId || '';
+                          // 2차 무통장 결제 신청 후 admin 입금 확인 전까지 '결제중'.
+                          const showPaying = isBankPaymentPendingSync(payChildId);
                           return (
                             <View style={styles.bundlePayRow}>
-                              <TouchableOpacity
-                                style={styles.primaryButton}
-                                onPress={() =>
-                                  embedNavigate('OrderPayment', { orderId: payChild.id })
-                                }
-                              >
-                                <Text style={styles.primaryButtonText}>
-                                  {t('cart.pay') || 'Pay Now'}
-                                </Text>
-                              </TouchableOpacity>
+                              {showPaying ? (
+                                <View style={styles.payingRow}>
+                                  <View style={styles.payingBadge}>
+                                    <Text style={styles.payingBadgeText}>
+                                      {t('buyList.paying') || '결제중'}
+                                    </Text>
+                                  </View>
+                                  {/* 결제중 옆 취소 → cancel-pending-payment(부모주문 기준) */}
+                                  <TouchableOpacity
+                                    style={styles.cancelPendingButton}
+                                    activeOpacity={0.7}
+                                    disabled={cancelingPaymentId === payChildId}
+                                    onPress={() =>
+                                      void handleCancelPendingPayment(payChild)
+                                    }
+                                  >
+                                    {cancelingPaymentId === payChildId ? (
+                                      <ActivityIndicator size="small" color={COLORS.red} />
+                                    ) : (
+                                      <Text style={styles.cancelPendingButtonText}>
+                                        {t('common.cancel') || '취소'}
+                                      </Text>
+                                    )}
+                                  </TouchableOpacity>
+                                </View>
+                              ) : (
+                                <TouchableOpacity
+                                  style={styles.primaryButton}
+                                  onPress={() =>
+                                    embedNavigate('OrderPayment', { orderId: payChild.id })
+                                  }
+                                >
+                                  <Text style={styles.primaryButtonText}>
+                                    {t('cart.pay') || 'Pay Now'}
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
                             </View>
                           );
                         })()}
