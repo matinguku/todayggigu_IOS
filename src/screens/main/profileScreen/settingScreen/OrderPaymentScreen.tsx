@@ -346,7 +346,15 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
       // 완료/취소 시 BuyList 로 돌아오며 결제 결과는 backend 의 RETURN_URL
       // 콜백으로 처리된다.
       if (selectedTab === 'credit_card') {
-        const prepareRes = await orderApi.prepareBillgatePayment(orderId, '0900');
+        // 2차(출고결제)면 부모주문 단위 묶음 2차 BillGate prepare 를 호출한다.
+        // POST /v1/payments/billgate/prepare-bundle-second-tier { parentOrderNumber, serviceCode }
+        // 1차면 기존 단일주문 prepare( { orderId, serviceCode } ).
+        const prepareRes = secondTier
+          ? await orderApi.prepareBundleSecondTierBillgate(
+              (order as any).parentOrderNumber || order.orderNumber,
+              '0900',
+            )
+          : await orderApi.prepareBillgatePayment(orderId, '0900');
         if (!prepareRes.success || !prepareRes.data?.paymentData) {
           showToast(prepareRes.error || t('profile.unitSurvey.paymentConfirmFailed'), 'error');
           setSubmitting(false);

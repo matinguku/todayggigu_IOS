@@ -2469,6 +2469,49 @@ export const orderApi = {
     }
   },
 
+  /**
+   * 2차(출고결제) 신용카드 prepare — 부모주문 단위 묶음 2차 BillGate 결제 데이터.
+   *   POST /v1/payments/billgate/prepare-bundle-second-tier
+   *   Body: { parentOrderNumber, serviceCode }
+   * 응답은 1차 prepareBillgatePayment 와 동일 형식(paymentData + billgateScriptUrl)
+   * 이라 BillgateWebView 흐름을 그대로 재사용한다. 금액(AMOUNT)은 secondTierCost
+   * 기준(국제배송비 등)으로 백엔드가 계산한다 — 상품 가격과 무관.
+   */
+  prepareBundleSecondTierBillgate: async (
+    parentOrderNumber: string,
+    serviceCode: string = '0900',
+  ): Promise<ApiResponse<{ paymentData: Record<string, string>; billgateScriptUrl: string }>> => {
+    try {
+      const url = `${API_BASE_URL}/payments/billgate/prepare-bundle-second-tier`;
+      const body = { parentOrderNumber, serviceCode };
+      const response = await axiosWithAuth('POST', url, { data: body });
+      const responseData = response.data;
+      if (!responseData) {
+        return { success: false, error: 'Invalid response from server.' };
+      }
+      if (responseData.status && responseData.status !== 'success') {
+        return {
+          success: false,
+          error: responseData?.message || responseData?.error || 'Failed to prepare BillGate payment',
+        };
+      }
+      return {
+        success: true,
+        message: responseData.message || 'BillGate payment data prepared',
+        data: responseData.data,
+      };
+    } catch (error: any) {
+      const serverMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message;
+      return {
+        success: false,
+        error: serverMessage || 'An unexpected error occurred. Please try again.',
+      };
+    }
+  },
+
   createOrderDirectPurchase: async (request: CreateOrderDirectPurchaseRequest): Promise<ApiResponse<OrderResponse>> => {
     try {
       const token = await getStoredToken();
