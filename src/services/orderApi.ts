@@ -560,8 +560,13 @@ export const buildOrdersProxyCreateRequest = (
     orderMainInfo: {
       requestType,
       logisticsCenter: params.logisticsCenter,
-      transferMethod: params.transportMethod,
-      shippingMethod: params.applicationCategory,
+      // 웹 백엔드 저장 형식이 정답 기준:
+      //   transferMethod ← 신청종류(applicationCategory)  예: "LCL"
+      //   shippingMethod ← 운송방식(transportMethod)       예: "해운배송"
+      // 이전엔 두 값이 정반대로 들어가, 관리자 화면에서 운송방식 칸에 신청종류
+      // 값(LCL)이, 신청 항목에 운송방식 값(해운배송)이 표시되는 뒤바뀜이 있었다.
+      transferMethod: params.applicationCategory,
+      shippingMethod: params.transportMethod,
       customMethod: params.customsClearance,
     },
   };
