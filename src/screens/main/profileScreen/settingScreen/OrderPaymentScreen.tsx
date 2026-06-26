@@ -64,16 +64,6 @@ const formatWon = (amount: number): string => {
   return `₩${n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 };
 
-/** secondTierCost 의 KRW 항목 → 요약에 보여줄 라벨 (실제 값이 있는 것만 표시). */
-const SECOND_TIER_FIELDS: Array<{ key: string; labelKey: string }> = [
-  { key: 'baseInternationalShippingKRW', labelKey: 'payment.secondTier.baseShipping' },
-  { key: 'additionalInternationalShippingKRW', labelKey: 'payment.secondTier.additionalShipping' },
-  { key: 'ruralShippingCostKRW', labelKey: 'payment.secondTier.ruralShipping' },
-  { key: 'codFee', labelKey: 'payment.secondTier.codFee' },
-  { key: 'cashOnDeliveryKRW', labelKey: 'payment.secondTier.cashOnDelivery' },
-  { key: 'additionalServicesTotalKRW', labelKey: 'payment.secondTier.additionalServices' },
-];
-
 const resolveProductTotalKRW = (order: Order): number => {
   const tier = order.firstTierCost;
   const fromTier = coerceAmount(tier?.productTotalKRW) || coerceAmount(tier?.realProductTotalKRW);
@@ -238,12 +228,13 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
     if (!pendingSecond) return null;
     const cost = (order as any).secondTierCost as Record<string, unknown> | undefined;
     const totalKRW = coerceAmount(pendingSecond.amountKRW) || coerceAmount(cost?.totalKRW);
-    const rows = cost
-      ? SECOND_TIER_FIELDS.map((f) => ({ label: t(f.labelKey), value: coerceAmount(cost[f.key]) }))
-          .filter((r) => r.value > 0)
-      : [];
-    return { totalKRW, rows };
-  }, [order, t]);
+    // 무게총금액 = 기본 국제배송비(무게 기준 baseInternationalShippingKRW).
+    // 부가서비스 총액 = 그 외 전부(= 합계 − 무게총금액). 개별 부가비용 필드가 0 이어도
+    // 합계에 녹아 있는 수수료 등을 포함해 보여주기 위해 차액으로 계산한다(이미지 기준).
+    const weightTotalKRW = coerceAmount(cost?.baseInternationalShippingKRW);
+    const additionalServicesKRW = Math.max(0, totalKRW - weightTotalKRW);
+    return { totalKRW, weightTotalKRW, additionalServicesKRW };
+  }, [order]);
 
   const estimatedTotal = useMemo(() => {
     if (!order) return 0;
@@ -547,6 +538,27 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>{t('payment.confirmOrderDetails')}</Text>
 
+          {secondTier ? (
+            // 2차(출고결제) — 묶음(부모)·구매 주문번호 박스. parentOrderNumber 가
+            // 있으면 묶음주문번호(부모주문 단위 묶음 결제)를 함께 표시한다.
+            <View style={styles.orderNoBox}>
+              {(order as any).parentOrderNumber ? (
+                <>
+                  <View style={styles.orderNoInlineRow}>
+                    <Text style={styles.orderNoLabel}>{t('payment.bundleOrderNumber')}</Text>
+                    <Text style={styles.orderNoAccent}>
+                      {(order as any).parentOrderNumber}
+                    </Text>
+                    <Text style={styles.orderNoHint}>{t('payment.bundlePaymentHint')}</Text>
+                  </View>
+                  <View style={styles.orderNoDivider} />
+                </>
+              ) : null}
+              <Text style={styles.orderNoLabel}>{t('payment.purchaseOrderNumber')}</Text>
+              <Text style={styles.orderNoValue}>{order.orderNumber}</Text>
+            </View>
+          ) : null}
+
           {order.items.map((item, index) => {
             const unitPrice = resolveOrderItemUnitPrice(item);
             const qty = coerceAmount(item.quantity) || 1;
@@ -611,14 +623,18 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
           ) : null}
 
           {secondTier ? (
-            // 2차(출고결제) — 이미지 바로 밑에 secondTierCost 의 실제 값 있는 항목만(₩).
+            // 2차(출고결제) — 무게총금액(기본 국제배송비)·부가서비스 총액(나머지)·합계(₩).
             <>
-              {secondTier.rows.map((r, i) => (
-                <View key={`st-${i}`} style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{r.label}</Text>
-                  <Text style={styles.summaryValue}>{formatWon(r.value)}</Text>
-                </View>
-              ))}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('payment.weightTotal')}</Text>
+                <Text style={styles.summaryValue}>{formatWon(secondTier.weightTotalKRW)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('payment.additionalServicesTotal')}</Text>
+                <Text style={styles.summaryValue}>
+                  {formatWon(secondTier.additionalServicesKRW)}
+                </Text>
+              </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryRow}>
                 <Text style={styles.estimatedLabel}>{t('payment.estimatedTotal')}</Text>
@@ -740,6 +756,44 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text.primary,
     marginBottom: SPACING.md,
+  },
+  orderNoBox: {
+    backgroundColor: COLORS.lightRed,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  orderNoInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  orderNoLabel: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  orderNoAccent: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '700',
+    color: COLORS.red,
+  },
+  orderNoHint: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.text.secondary,
+  },
+  orderNoValue: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginTop: 2,
+  },
+  orderNoDivider: {
+    height: 1,
+    backgroundColor: COLORS.red + '26',
+    marginVertical: SPACING.sm,
   },
   tabRow: {
     flexDirection: 'row',
