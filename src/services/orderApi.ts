@@ -2354,6 +2354,67 @@ export const orderApi = {
   },
 
   /**
+   * 2차(출고결제) 무통장 — 부모주문 단위 묶음 2차 무통장 입금 신청.
+   *   POST /v1/payments/bundle-second-tier/bank
+   *   body: { parentOrderNumber, depositorName }
+   * 성공 시 data.bankInfo(은행/계좌/금액/기한/참조/입금자명) 로 안내 모달을 띄운다.
+   * 2차 비용은 secondTierCost 기준(국제배송비 등)이며 상품 가격과 무관하다.
+   */
+  submitBundleSecondTierBankTransfer: async (
+    parentOrderNumber: string,
+    depositorName: string,
+  ): Promise<
+    ApiResponse<{
+      parentOrderNumber?: string;
+      amountKRW?: number;
+      bankReference?: string;
+      depositorName?: string;
+      bankInfo?: {
+        bankName?: string;
+        bankAccount?: string;
+        amountKRW?: number;
+        dueDate?: string;
+        dueTime?: string;
+        reference?: string;
+        depositorName?: string;
+      };
+    }>
+  > => {
+    try {
+      const body: Record<string, unknown> = {
+        parentOrderNumber,
+        depositorName: depositorName.trim(),
+      };
+      const url = `${API_BASE_URL}/payments/bundle-second-tier/bank`;
+      const response = await axiosWithAuth('POST', url, { data: body });
+      const responseData = response.data;
+      if (!responseData) {
+        return { success: false, error: 'Invalid response from server. Please try again.' };
+      }
+      if (responseData.status && responseData.status !== 'success') {
+        return {
+          success: false,
+          error: responseData?.message || responseData?.error || 'Failed to process payment',
+        };
+      }
+      return {
+        success: true,
+        message: responseData.message,
+        data: responseData.data,
+      };
+    } catch (error: any) {
+      const serverMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message;
+      return {
+        success: false,
+        error: serverMessage || 'An unexpected error occurred. Please try again.',
+      };
+    }
+  },
+
+  /**
    * 신용카드 결제 prepare — BillGate 결제창 진입을 위한 paymentData 를 받는다.
    *
    * 백엔드 endpoint: POST /v1/payments/billgate/prepare

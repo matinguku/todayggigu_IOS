@@ -349,6 +349,48 @@ const OrderPaymentScreen: React.FC<OrderPaymentScreenProps> = ({
       // POST /orders/checkout { paymentMethod: 'payaction', amount, depositorName }
       // 성공 시 응답의 bankPaymentInfo 로 "무통장입금 안내" 모달을 띄운다.
       if (selectedTab === 'bank') {
+        // 2차(출고결제) 무통장 — 부모주문 단위 묶음 2차 무통장 입금.
+        // POST /v1/payments/bundle-second-tier/bank { parentOrderNumber, depositorName }
+        // 성공 시 data.bankInfo 로 "무통장입금 안내" 모달을 띄운다.
+        if (secondTier) {
+          const parentNo = (order as any).parentOrderNumber || order.orderNumber;
+          const stRes = await orderApi.submitBundleSecondTierBankTransfer(
+            parentNo,
+            memberName.trim(),
+          );
+          if (!stRes.success) {
+            showToast(stRes.error || t('profile.unitSurvey.paymentConfirmFailed'), 'error');
+            setSubmitting(false);
+            return;
+          }
+          // admin 입금 확인 전까지 카드에 "결제중" 표시.
+          try {
+            await markBankPaymentPending(orderId);
+          } catch (markErr) {
+            console.warn('[OrderPaymentScreen] markBankPaymentPending failed:', markErr);
+          }
+          const stInfo = stRes.data?.bankInfo;
+          if (stInfo && (stInfo.bankName || stInfo.bankAccount)) {
+            setBankInfo({
+              bankName: stInfo.bankName || '',
+              bankAccount: stInfo.bankAccount || '',
+              amountKRW:
+                stInfo.amountKRW ?? stRes.data?.amountKRW ?? Math.ceil(estimatedTotal),
+              dueDate: stInfo.dueDate,
+              dueTime: stInfo.dueTime,
+              reference: stInfo.reference ?? stRes.data?.bankReference,
+              depositorName: stInfo.depositorName ?? memberName.trim(),
+            });
+            setBankOrderNumber(stRes.data?.parentOrderNumber ?? parentNo);
+            setBankModalVisible(true);
+            setSubmitting(false);
+            return;
+          }
+          showToast(stRes.message || t('profile.unitSurvey.paymentConfirmSuccess'), 'success');
+          goToBuyList();
+          return;
+        }
+
         const res = await orderApi.submitBankTransfer(
           orderId,
           payAmount,
